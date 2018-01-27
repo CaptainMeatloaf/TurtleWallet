@@ -133,6 +133,9 @@ class MainWindow(object):
             'fee': 10, # 0.1
             'transfers': [{'amount': amount, 'address': target_address}],
         }
+        payment_id = self.builder.get_object("PaymentIDEntry").get_text()
+        if payment_id:
+            body['paymentId'] = payment_id
         try:
             resp = global_variables.wallet_connection.request("sendTransaction", params=body)
             txHash = resp['transactionHash']

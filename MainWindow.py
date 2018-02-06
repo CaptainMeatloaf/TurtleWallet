@@ -11,7 +11,8 @@ import threading
 import time
 from gi.repository import Gtk, Gdk, GLib
 import tzlocal
-from requests import ConnectionError
+import requests
+from requests import ConnectionError, HTTPError
 from __init__ import __version__
 import global_variables
 import logging
@@ -409,6 +410,22 @@ class MainWindow(object):
                         # The address as located earlier
                         address
                     ])
+
+        # Update the dollar value
+        try:
+            api_result = requests.get('https://tradesatoshi.com/api/public/getticker?market=TRTL_BTC')
+            api_result.raise_for_status()
+            trtl_price_btc = float(api_result.json()['result']['last'])
+            api_result = requests.get('https://api.coinmarketcap.com/v1/ticker/bitcoin')
+            api_result.raise_for_status()
+            btc_price_usd = float(api_result.json()[0]['price_usd'])
+            self.builder.get_object("DollarValueAmountLabel").set_text("{:,.2f}".format(
+                trtl_price_btc * btc_price_usd * float(balances['availableBalance']/100.)))
+            self.builder.get_object("DollarValueSymbolLabel").set_text("$")
+        except (ValueError, KeyError, HTTPError) as e:
+            main_logger.error("Failed to retrieve dollar value: {}".format(e))
+            self.builder.get_object("DollarValueAmountLabel").set_text("")
+            self.builder.get_object("DollarValueSymbolLabel").set_text("")
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         block_height_string = "<b>Current block height</b> {}".format(status['blockCount'])

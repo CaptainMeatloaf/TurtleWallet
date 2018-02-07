@@ -5,6 +5,7 @@ Stores commonly used functions used across the wallet
 """
 import os
 import global_variables
+from uuid import uuid4
 
 def get_wallet_daemon_path():
     """
@@ -23,3 +24,7 @@ def get_wallet_daemon_path():
         raise ValueError("Cannot find wallet at location: {}".format(walletd_exec))
 
     return walletd_exec
+
+
+def get_rpc_password():
+    return str(uuid4())

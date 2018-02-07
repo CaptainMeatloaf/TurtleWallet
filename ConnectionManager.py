@@ -8,7 +8,7 @@ connections, currently just to Walletd.
 import json
 import psutil
 import requests
-from HelperFunctions import get_wallet_daemon_path
+from HelperFunctions import get_wallet_daemon_path, get_rpc_password
 import time
 import os
 import os.path
@@ -72,7 +72,7 @@ class WalletConnection(object):
             return True
         
 
-    def start_wallet_daemon(self, wallet_file, password):
+    def start_wallet_daemon(self, wallet_file, password, rpc_password):
         """
         Fires off the wallet daemon and releases control once the daemon
         has successfully been spun up.
@@ -85,6 +85,17 @@ class WalletConnection(object):
         existing_daemon = self.check_daemon_running()
         #gets known good daemon path
         good_daemon = get_wallet_daemon_path()
+        # Determine walletd args
+        walletd_args = [get_wallet_daemon_path(), '-w', wallet_file, '-p', password, '--rpc-password', rpc_password]
+        remote_daemon_address = global_variables.wallet_config.get('remoteDaemonAddress', None)
+        # Evaluate if a remote daemon is to be used, else we use the local argument
+        if remote_daemon_address:
+            walletd_args.extend(["--daemon-address", remote_daemon_address])
+            remote_daemon_port = global_variables.wallet_config.get('remoteDaemonPort', None)
+            if remote_daemon_port:
+                walletd_args.extend(["--daemon-port", remote_daemon_port])
+        else:
+            walletd_args.append("--local")
         #checks if existing daemon has been found
         if existing_daemon:
             print(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
@@ -96,13 +107,13 @@ class WalletConnection(object):
                 #if a invlaid daemon is found, we terminate it and start a new one
                 existing_daemon.terminate()
                 existing_daemon.wait()
-                walletd = Popen([get_wallet_daemon_path(), '-w', wallet_file, '-p', password, '--local'])
+                walletd = Popen(walletd_args)
             else:
                 #existing daemon found to be valid, simply return the existing process object
                 return existing_daemon
         else:
             #No existing daemon found, start new instance
-            walletd = Popen([get_wallet_daemon_path(), '-w', wallet_file, '-p', password, '--local'])
+            walletd = Popen(walletd_args)
 
         # Poll the daemon, if poll returns None the daemon is active.
         while walletd.poll():
@@ -134,19 +145,21 @@ class WalletConnection(object):
         if not os.path.isfile(wallet_file):
             WC_logger.error(global_variables.message_dict["NO_WALLET_FILE"].format(wallet_file))
             raise ValueError(global_variables.message_dict["NO_WALLET_FILE"].format(wallet_file))
-        self.walletd = self.start_wallet_daemon(wallet_file, password)
+        self.rpc_password = get_rpc_password()
+        self.walletd = self.start_wallet_daemon(wallet_file, password, self.rpc_password)
         # If a user is running their own daemon, they can configure the host/port
         host = os.getenv('DAEMON_HOST', "http://127.0.0.1")
         port = os.getenv('DAEMON_PORT', 8070)
-        self.rpc_connection = RPCConnection("{}:{}/json_rpc".format(host, port))
+        self.rpc_connection = RPCConnection("{}:{}/json_rpc".format(host, port), self.rpc_password)
 
 
 class RPCConnection(object):
     """
     This class makes requests to a JSON RPC 2.0 endpoint
     """
-    def __init__(self, url):
+    def __init__(self, url, rpc_password):
         self.url = url # Just take the URL at face value, assume user has validated
+        self.rpc_password = rpc_password
         self.headers = {'content-type':'application/json'} # Set the headers
         self.id = 0 # Set the ID, which will increase with each call
 
@@ -158,6 +171,7 @@ class RPCConnection(object):
             "jsonrpc" : "2.0", # Using JSON RPC 2.0
             "method" : method, # The user specified method
             "params" : params, # The user specified, or default params
+            "password": self.rpc_password,
             "id" : self.id # The next ID in sequence
         }
 

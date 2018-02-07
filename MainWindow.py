@@ -427,7 +427,9 @@ class MainWindow(object):
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         block_height_string = "<b>Current block height</b> {}".format(status['blockCount'])
-        if status['blockCount'] < status['knownBlockCount']:
+        # Buffer the block count by 1 due to latency issues
+        # Using a remote daemon for example will almost always be behind one block.
+        if status['blockCount']+1 < status['knownBlockCount']:
             block_height_string = "<b>Synchronizing with network...</b> [{} / {}]".format(status['blockCount'], status['knownBlockCount'])
         status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
         self.builder.get_object("MainStatusLabel").set_markup(status_label)

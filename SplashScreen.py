@@ -83,7 +83,8 @@ class SplashScreen(object):
                     GLib.idle_add(self.update_status, "Syncing... [{} / {}]".format(block_count, known_block_count))
                     splash_logger.debug("Syncing... [{} / {}]".format(block_count, known_block_count))
                     # Even though we check known block count, leaving it in there in case of weird edge cases
-                    if (known_block_count > 0) and (block_count >= known_block_count):
+                    # Buffer the block count by 1 due to latency issues, remote node will almost always be ahead by one
+                    if (known_block_count > 0) and (block_count+1 >= known_block_count):
                         GLib.idle_add(self.update_status, "Wallet is synced, opening...")
                         splash_logger.info("Wallet successfully synced, opening wallet")
                         break

@@ -11,8 +11,7 @@ import threading
 import time
 from gi.repository import Gtk, Gdk, GLib
 import tzlocal
-import requests
-from requests import ConnectionError, HTTPError
+from requests import ConnectionError
 from __init__ import __version__
 import global_variables
 import logging
@@ -25,7 +24,7 @@ class UILogHandler(logging.Handler):
     """
     This class is a custom Logging.Handler that fires off every time
     a message is added to the applications log. This shows similar to
-    what the log file does, but the verbose is set to INFO instead of
+    what the log file does, but the verbose is set to INFO instead of 
     debug to keep logs in UI slim, and logs in the file more beefy.
     """
     def __init__(self, textbuffer):
@@ -51,7 +50,7 @@ class MainWindow(object):
         """Called by GTK when the copy button is clicked"""
         self.builder.get_object("AddressTextBox")
         Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(self.builder.get_object("AddressTextBox").get_text(), -1)
-
+        
     def on_FeeSuggestionCheck_clicked(self, object, data=None):
         """Called by GTK when the FeeSuggestionCheck Checkbox is Toggled"""
         fee_entry = self.builder.get_object("FeeEntry")
@@ -62,7 +61,7 @@ class MainWindow(object):
         else:
             #enable fee entry
             fee_entry.set_sensitive(True)
-
+            
     def on_LogsMenuItem_activate(self, object, data=None):
         """Called by GTK when the LogsMenuItem Menu Item is Clicked
             This shows the log page on the main window"""
@@ -75,7 +74,7 @@ class MainWindow(object):
             #If not get the label and page, and show it
             logLabel = self.builder.get_object("LogTabLabel")
             noteBook.append_page(logBox,logLabel)
-
+        
     def on_RPCMenuItem_activate(self, object, data=None):
         """Called by GTK when the LogsMenuItem Menu Item is Clicked
             This shows the RPC page on the main window"""
@@ -88,12 +87,12 @@ class MainWindow(object):
             #If not get the label and page, and show it
             RPCLabel = self.builder.get_object("RPCTabLabel")
             noteBook.append_page(RPCBox,RPCLabel)
-
+            
     def on_rpcSendButton_clicked(self, object, data=None):
         """ Called by GTK when the RPCSend button has been clicked """
         method = self.builder.get_object("RPCMethodEntry").get_text()
         args = self.builder.get_object("RPCArgumentsEntry").get_text()
-
+        
         #Check the method and arg are somewhat valid
         if method == "":
             end_iter = self.RPCbuffer.get_end_iter()
@@ -105,7 +104,7 @@ class MainWindow(object):
             end_iter = self.RPCbuffer.get_end_iter()
             self.RPCbuffer.insert(end_iter, "\n\n" + 'ERROR: Invalid JSON in arguments given. Ex. \n {"blockCount":1000, "firstBlockIndex":1,"addresses":[ "22p4wUHAMndSscvtYErtqUaYrcUTvrZ9zhWwxc3JtkBHAnw4FJqenZyaePSApKWwJ5BjCJz1fKJoA6QHn5j6bVHg8A8dyhp"]}')
             return
-
+        
         #Send the request to RPC server and print results on textview
         try:
             r = global_variables.wallet_connection.request(method,args_dict)
@@ -114,17 +113,17 @@ class MainWindow(object):
         except Exception as e:
             end_iter = self.RPCbuffer.get_end_iter()
             self.RPCbuffer.insert(end_iter, "\n\n" + "ERROR:\n" + str(e))
-
+            
     def on_RPCTextView_size_allocate(self, *args):
         """The GTK Auto Scrolling method used to scroll RPC view when info is added"""
         adj = self.RPCScroller.get_vadjustment()
         adj.set_value(adj.get_upper() - adj.get_page_size())
-
+        
     def on_LogTextView_size_allocate(self, *args):
         """The GTK Auto Scrolling method used to scroll Log view when info is added"""
         adj = self.LogScroller.get_vadjustment()
         adj.set_value(adj.get_upper() - adj.get_page_size())
-
+        
 
     def on_AboutMenuItem_activate(self, object, data=None):
         """Called by GTK when the 'About' menu item is clicked"""
@@ -223,7 +222,7 @@ class MainWindow(object):
             self.builder.get_object("TransactionStatusLabel")\
                 .set_label("Slow down TRTL bro! The amount needs to be a number greater than 0.")
             return
-
+            
         #Determine Fee Settings
         #Get feeSuggest Checkbox widget
         feeSuggest = self.builder.get_object("FeeSuggestionCheck")
@@ -243,7 +242,7 @@ class MainWindow(object):
                 return
         else:
             fee = global_variables.static_fee
-
+            
         # Mixin
         mixin = int(self.builder.get_object("MixinSpinButton").get_text())
         body = {
@@ -295,7 +294,7 @@ class MainWindow(object):
     def set_error_status(self):
         main_logger.error(global_variables.message_dict["FAILED_DAEMON_COMM"])
         self.builder.get_object("MainStatusLabel").set_label(global_variables.message_dict["FAILED_DAEMON_COMM"])
-
+        
     def MainWindow_generic_dialog(self, title, message):
         """
         This is a generic dialog that can be passed a title and message to display, and shows OK and CANCEL buttons.
@@ -316,7 +315,7 @@ class MainWindow(object):
             return True
         else:
             return False
-
+        
     def restart_Daemon(self):
         """
         This function gets called when during the refresh cycle, the daemon is found to be possibly dead or hanging.
@@ -324,7 +323,7 @@ class MainWindow(object):
         daemon for us if needed.
         """
         global_variables.wallet_connection.start_wallet_daemon(global_variables.wallet_connection.wallet_file,global_variables.wallet_connection.password)
-
+            
 
     def refresh_values(self):
         """
@@ -337,7 +336,7 @@ class MainWindow(object):
             # Update the balance amounts, formatted as comma seperated with 2 decimal points
             self.builder.get_object("AvailableBalanceAmountLabel").set_label("{:,.2f}".format(balances['availableBalance']/100.))
             self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(balances['lockedAmount']/100.))
-
+            
             # Request the addresses from the wallet (looks like you can have multiple?)
             addresses = global_variables.wallet_connection.request("getAddresses")['addresses']
             # Load the first address in for now - TODO: Check if multiple addresses need accounting for
@@ -351,10 +350,10 @@ class MainWindow(object):
             blocks = global_variables.wallet_connection.request("getTransactions", params={"blockCount" : status['blockCount'], "firstBlockIndex" : 1, "addresses": addresses})['items']
             self.currentTimeout = 0
             self.currentTry = 0
-
+            
         except ConnectionError as e:
             main_logger.error(str(e))
-
+            
             #Checks to see if the daemon failed to respond 3 or more times in a row
             if self.currentTimeout >= self.watchdogTimeout:
                 #Checks to see if we have restarted the daemon 3 or more times already
@@ -370,7 +369,7 @@ class MainWindow(object):
                     Gtk.main_quit()
             else:
                 self.currentTimeout += 1
-
+                
             self.set_error_status()
             return
 
@@ -390,7 +389,7 @@ class MainWindow(object):
                         desired_transfer_amount = (transaction['amount'] + transaction['fee']) * -1
                     else:
                         desired_transfer_amount = transaction['amount']
-
+                    
                     # Now loop through the transfers and find the address with the correctly transferred amount
                     for transfer in transaction['transfers']:
                         if transfer['amount'] == desired_transfer_amount:
@@ -411,20 +410,6 @@ class MainWindow(object):
                         address
                     ])
 
-        # Update the dollar balance
-        try:
-            api_result = requests.get('https://tradeogre.com/api/v1/ticker/BTC-TRTL')
-            api_result.raise_for_status()
-            trtl_price_btc = float(api_result.json()['price'])
-            api_result = requests.get('https://api.coinmarketcap.com/v1/ticker/bitcoin')
-            api_result.raise_for_status()
-            btc_price_usd = float(api_result.json()[0]['price_usd'])
-            self.builder.get_object("DollarBalanceAmountLabel").set_text(
-                "{:,.2f}".format(trtl_price_btc * btc_price_usd * float(self.builder.get_object("AvailableBalanceAmountLabel").get_label().replace(',',''))))
-            self.builder.get_object("DollarBalanceSymbolLabel").set_text('$')
-        except (ValueError, KeyError, HTTPError):
-            pass
-
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         block_height_string = "<b>Current block height</b> {}".format(status['blockCount'])
         # Buffer the block count by 1 due to latency issues
@@ -433,7 +418,7 @@ class MainWindow(object):
             block_height_string = "<b>Synchronizing with network...</b> [{} / {}]".format(status['blockCount'], status['knownBlockCount'])
         status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
         self.builder.get_object("MainStatusLabel").set_markup(status_label)
-
+        
         #Logging here for debug purposes. Sloppy Joe..
         main_logger.debug("REFRESH STATS:" + "\r\n" + "AvailableBalanceAmountLabel: {:,.2f}".format(balances['availableBalance']/100.) + "\r\n" + "LockedBalanceAmountLabel: {:,.2f}".format(balances['lockedAmount']/100.) + "\r\n" + "Address: " + str(addresses[0])  + "\r\n" +  "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
@@ -441,7 +426,7 @@ class MainWindow(object):
         # Initialise the GTK builder and load the glade layout from the file
         self.builder = Gtk.Builder()
         self.builder.add_from_file("MainWindow.glade")
-
+        
         # Init. counters needed for watchdog function
         self.watchdogTimeout = 3
         self.watchdogMaxTry = 3
@@ -462,22 +447,22 @@ class MainWindow(object):
 
         # Setup the transaction spin button
         self.setup_spin_button()
-
+        
         # Setup UILogHandler so the Log Textview gets the same
         # information as the log file, with less verbose (INFO).
         uiHandler = UILogHandler(self.builder.get_object("LogBuffer"))
         uiHandler.setLevel(logging.INFO)
         main_logger.addHandler(uiHandler)
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
-
+        
         #Setup UI RPC variables
         self.RPCbuffer = self.builder.get_object("RPCTextView").get_buffer()
         self.RPCScroller = self.builder.get_object("RPCScrolledWindow")
-
+        
         #Set the default fee amount in the FeeEntry widget
         self.builder.get_object("FeeEntry").set_text(str(float(global_variables.static_fee) / float(100)))
-
-
+        
+        
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
             tmpconfig = json.loads(configFile.read())
@@ -497,7 +482,7 @@ class MainWindow(object):
         self.update_thread = threading.Thread(target=self.update_loop)
         self.update_thread.daemon = True
         self.update_thread.start()
-
+        
         #These tabs should not be shown, even on show all
         noteBook = self.builder.get_object("MainNotebook")
         #Remove Log tab
@@ -507,8 +492,8 @@ class MainWindow(object):
 
         # Finally, show the window
         self.window.show_all()
-
-
+        
+  
 
     def setup_spin_button(self):
         """

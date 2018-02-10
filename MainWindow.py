@@ -373,9 +373,6 @@ class MainWindow(object):
             self.set_error_status()
             return
 
-        # Clear the transaction list store ready to (re)populate
-        self.transactions_list_store.clear()
-
         # Iterate through the blocks and extract the relevant data
         # This is reversed to show most recent transactions first
         for block in reversed(blocks):
@@ -394,21 +391,35 @@ class MainWindow(object):
                     for transfer in transaction['transfers']:
                         if transfer['amount'] == desired_transfer_amount:
                             address = transfer['address']
+                            break
 
-                    # Append the transaction to the treeview's backing list store in the correct format
-                    self.transactions_list_store.append([
-                        # Determine the direction of the transfer (In/Out)
-                        "In" if transaction['amount'] > 0 else "Out",
-                        # Determine if the transaction is confirmed or not - block rewards take 40 blocks to confirm,
-                        # transactions between wallets are marked as confirmed automatically with unlock time 0
-                        transaction['unlockTime'] is 0 or transaction['unlockTime'] <= status['blockCount'] - 40,
-                        # Format the amount as comma seperated with 2 decimal points
-                        "{:,.2f}".format(transaction['amount']/100.),
-                        # Format the transaction time for the user's local timezone
-                        datetime.fromtimestamp(transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"),
-                        # The address as located earlier
-                        address
-                    ])
+                    # Append new transactions to the treeview's backing list store in the correct format
+                    if transaction['transactionHash'] not in [r[0] for r in self.transactions_list_store]:
+                        self.transactions_list_store.append([
+                            transaction['transactionHash'],
+                            # Determine the direction of the transfer (In/Out)
+                            "In" if transaction['amount'] > 0 else "Out",
+                            # Determine if the transaction is confirmed or not - block rewards take 40 blocks to confirm,
+                            # transactions between wallets are marked as confirmed automatically with unlock time 0
+                            transaction['unlockTime'] is 0 or transaction['unlockTime'] <= status['blockCount'] - 40,
+                            # Format the amount as comma seperated with 2 decimal points
+                            "{:,.2f}".format(transaction['amount']/100.),
+                            # Format the transaction time for the user's local timezone
+                            datetime.fromtimestamp(transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"),
+                            # The address as located earlier
+                            address
+                        ])
+
+        # Remove any transactions that are no longer valid
+        # e.g. in case the daemon has accidentally forked and listed some transactions that are invalid
+        valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in blocks]
+        rows = self.transactions_list_store.iter_children(None)
+        while rows:
+            columns = self.transactions_list_store.iter_children(rows)
+            if columns:
+                if self.transactions_list_store.get_value(columns, 0) not in valid_transactions:
+                    self.transactions_list_store.remove(columns)
+            rows = self.transactions_list_store.iter_next(rows)
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         block_height_string = "<b>Current block height</b> {}".format(status['blockCount'])

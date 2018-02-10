@@ -46,6 +46,8 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
   </object>
   <object class="GtkListStore" id="HomeTransactionsListStore">
     <columns>
+      <!-- column-name Hash -->
+      <column type="gchararray"/>
       <!-- column-name Direction -->
       <column type="gchararray"/>
       <!-- column-name Confirmed -->
@@ -404,13 +406,26 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                       <object class="GtkTreeSelection" id="treeview-selection1"/>
                     </child>
                     <child>
+                      <object class="GtkTreeViewColumn" id="HashColumn">
+                        <property name="visible">False</property>
+                        <property name="sizing">fixed</property>
+                        <property name="title" translatable="yes">Hash</property>
+                        <child>
+                          <object class="GtkCellRendererText" id="HashCellRenderer"/>
+                          <attributes>
+                            <attribute name="text">0</attribute>
+                          </attributes>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
                       <object class="GtkTreeViewColumn" id="DirectionColumn">
                         <property name="sizing">fixed</property>
                         <property name="title" translatable="yes">Direction</property>
                         <child>
                           <object class="GtkCellRendererText" id="DirectionCellRenderer"/>
                           <attributes>
-                            <attribute name="text">0</attribute>
+                            <attribute name="text">1</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -421,7 +436,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <child>
                           <object class="GtkCellRendererToggle" id="ConfirmedCellRenderer"/>
                           <attributes>
-                            <attribute name="active">1</attribute>
+                            <attribute name="active">2</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -432,7 +447,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <child>
                           <object class="GtkCellRendererText" id="AmountCellRenderer"/>
                           <attributes>
-                            <attribute name="text">2</attribute>
+                            <attribute name="text">3</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -444,7 +459,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <child>
                           <object class="GtkCellRendererText" id="DateCellRenderer"/>
                           <attributes>
-                            <attribute name="text">3</attribute>
+                            <attribute name="text">4</attribute>
                           </attributes>
                         </child>
                       </object>
@@ -457,7 +472,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <child>
                           <object class="GtkCellRendererText" id="AddressCellRenderer"/>
                           <attributes>
-                            <attribute name="text">4</attribute>
+                            <attribute name="text">5</attribute>
                           </attributes>
                         </child>
                       </object>

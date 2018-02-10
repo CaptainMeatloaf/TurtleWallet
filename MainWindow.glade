@@ -127,8 +127,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                       <object class="GtkCheckMenuItem" id="LogsMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="image">LogsMenuActivateImage</property>
-                        <property name="use_stock">False</property>
                         <property name="label">Logs</property>
                         <signal name="activate" handler="on_LogsMenuItem_activate" swapped="no"/>
                       </object>
@@ -137,8 +135,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                       <object class="GtkCheckMenuItem" id="RPCMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="image">RPCMenuActiveImage</property>
-                        <property name="use_stock">False</property>
                         <property name="label">RPC Console</property>
                         <signal name="activate" handler="on_RPCMenuItem_activate" swapped="no"/>
                       </object>

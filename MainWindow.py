@@ -250,6 +250,9 @@ class MainWindow(object):
             'fee': fee,
             'transfers': [{'amount': amount, 'address': target_address}],
         }
+        payment_id = self.builder.get_object("PaymentIDEntry").get_text()
+        if payment_id:
+            body['paymentId'] = payment_id
         try:
             resp = global_variables.wallet_connection.request("sendTransaction", params=body)
             txHash = resp['transactionHash']
@@ -276,6 +279,7 @@ class MainWindow(object):
         self.builder.get_object("RecipientAddressEntry").set_text('')
         self.builder.get_object("MixinSpinButton").set_value(0)
         self.builder.get_object("AmountEntry").set_text('')
+        self.builder.get_object("PaymentIDEntry").set_text('')
 
     def set_error_status(self):
         main_logger.error(global_variables.message_dict["FAILED_DAEMON_COMM"])

@@ -277,20 +277,6 @@ class MainWindow(object):
         self.builder.get_object("MixinSpinButton").set_value(0)
         self.builder.get_object("AmountEntry").set_text('')
 
-    def update_loop(self):
-        """
-        This method loops infinitely and refreshes the UI every 5 seconds.
-
-        Note:
-            More optimal differential method of reloading transactions
-            is required, as currently you can't really scroll through them
-            without it jumping back to the top when it clears the list.
-            Likely solution would be a hidden (or not) column with the
-            transaction hash."""
-        while True:
-            GLib.idle_add(self.refresh_values) # Refresh the values, calling the method via GLib
-            time.sleep(5) # Wait 5 seconds before doing it again
-
     def set_error_status(self):
         main_logger.error(global_variables.message_dict["FAILED_DAEMON_COMM"])
         self.builder.get_object("MainStatusLabel").set_label(global_variables.message_dict["FAILED_DAEMON_COMM"])
@@ -489,11 +475,9 @@ class MainWindow(object):
         except Exception as e:
             splash_logger.warn("Could not save config file: {}".format(e))
 
-        # Start the UI update loop in a new thread
-        self.update_thread = threading.Thread(target=self.update_loop)
-        self.update_thread.daemon = True
-        self.update_thread.start()
-        
+        # Register a function via Glib that gets called every 5 seconds to refresh the UI
+        GLib.timeout_add_seconds(5, self.refresh_values)
+
         #These tabs should not be shown, even on show all
         noteBook = self.builder.get_object("MainNotebook")
         #Remove Log tab

@@ -159,8 +159,8 @@ class MainWindow(object):
         r = global_variables.wallet_connection.request("reset")
         if not r:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
-            dialog.format_secondary_text(global_variables.message_dict["WALLET_RESET"])
-            main_logger.info(global_variables.message_dict["WALLET_RESET"])
+            dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
+            main_logger.info(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             dialog.run()
             dialog.destroy()
         else:

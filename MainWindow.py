@@ -362,6 +362,7 @@ class MainWindow(object):
                 
             self.set_error_status()
             return
+            return False
 
         # Iterate through the blocks and extract the relevant data
         # This is reversed to show most recent transactions first
@@ -385,6 +386,7 @@ class MainWindow(object):
 
                     # Append new transactions to the treeview's backing list store in the correct format
                     if transaction['transactionHash'] not in [r[0] for r in self.transactions_list_store]:
+                    if transaction['transactionHash'] not in [tx[0] for tx in self.transactions_list_store]:
                         self.transactions_list_store.append([
                             transaction['transactionHash'],
                             # Determine the direction of the transfer (In/Out)
@@ -421,7 +423,13 @@ class MainWindow(object):
         self.builder.get_object("MainStatusLabel").set_markup(status_label)
         
         #Logging here for debug purposes. Sloppy Joe..
-        main_logger.debug("REFRESH STATS:" + "\r\n" + "AvailableBalanceAmountLabel: {:,.2f}".format(balances['availableBalance']/100.) + "\r\n" + "LockedBalanceAmountLabel: {:,.2f}".format(balances['lockedAmount']/100.) + "\r\n" + "Address: " + str(addresses[0])  + "\r\n" +  "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+        main_logger.debug("REFRESH STATS:" + "\r\n" +
+                          "AvailableBalanceAmountLabel: {:,.2f}".format(balances['availableBalance']/100.) + "\r\n" +
+                          "LockedBalanceAmountLabel: {:,.2f}".format(balances['lockedAmount']/100.) + "\r\n" +
+                          "Address: " + str(addresses[0])  + "\r\n" +
+                           "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+
+        return True
 
     def __init__(self):
         # Initialise the GTK builder and load the glade layout from the file

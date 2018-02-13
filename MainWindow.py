@@ -74,7 +74,11 @@ class MainWindow(object):
             #If not get the label and page, and show it
             logLabel = self.builder.get_object("LogTabLabel")
             noteBook.append_page(logBox,logLabel)
-        
+            self.builder.get_object("LogsMenuItem").set_active(True)
+        else:
+            noteBook.remove_page(noteBook.page_num(logBox))
+            self.builder.get_object("LogsMenuItem").set_active(False)
+
     def on_RPCMenuItem_activate(self, object, data=None):
         """Called by GTK when the LogsMenuItem Menu Item is Clicked
             This shows the RPC page on the main window"""
@@ -87,7 +91,11 @@ class MainWindow(object):
             #If not get the label and page, and show it
             RPCLabel = self.builder.get_object("RPCTabLabel")
             noteBook.append_page(RPCBox,RPCLabel)
-            
+            self.builder.get_object("RPCMenuItem").set_active(True)
+        else:
+            noteBook.remove_page(noteBook.page_num(RPCBox))
+            self.builder.get_object("RPCMenuItem").set_active(False)
+
     def on_rpcSendButton_clicked(self, object, data=None):
         """ Called by GTK when the RPCSend button has been clicked """
         method = self.builder.get_object("RPCMethodEntry").get_text()
@@ -151,8 +159,8 @@ class MainWindow(object):
         r = global_variables.wallet_connection.request("reset")
         if not r:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
-            dialog.format_secondary_text(global_variables.message_dict["WALLET_RESET"])
-            main_logger.info(global_variables.message_dict["WALLET_RESET"])
+            dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
+            main_logger.info(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             dialog.run()
             dialog.destroy()
         else:

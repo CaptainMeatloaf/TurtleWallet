@@ -82,25 +82,15 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkMenuItem" id="HelpMenuItem">
+              <object class="GtkMenuItem" id="WalletMenuItem">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">_Help</property>
+                <property name="label" translatable="yes">_Wallet</property>
                 <property name="use_underline">True</property>
                 <child type="submenu">
-                  <object class="GtkMenu" id="HelpMenuSubmenu">
+                  <object class="GtkMenu" id="WalletMenuSubmenu">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkImageMenuItem" id="AboutMenuItem">
-                        <property name="label">gtk-about</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="use_underline">True</property>
-                        <property name="use_stock">True</property>
-                        <signal name="activate" handler="on_AboutMenuItem_activate" swapped="no"/>
-                      </object>
-                    </child>
                     <child>
                       <object class="GtkImageMenuItem" id="ResetMenuItem">
                         <property name="label">Reset Wallet</property>
@@ -121,24 +111,58 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <signal name="activate" handler="on_SaveMenuItem_activate" swapped="no"/>
                       </object>
                     </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="ViewMenuItem">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">_View</property>
+                <property name="use_underline">True</property>
+                <child type="submenu">
+                  <object class="GtkMenu" id="ViewMenuSubmenu">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="LogsMenuItem">
-                        <property name="label">Show Logs</property>
+                      <object class="GtkCheckMenuItem" id="LogsMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="image">LogsMenuActivateImage</property>
-                        <property name="use_stock">False</property>
+                        <property name="label">Logs</property>
                         <signal name="activate" handler="on_LogsMenuItem_activate" swapped="no"/>
                       </object>
                     </child>
                     <child>
-                      <object class="GtkImageMenuItem" id="RPCMenuItem">
-                        <property name="label">Show RPC Console</property>
+                      <object class="GtkCheckMenuItem" id="RPCMenuItem">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="image">RPCMenuActiveImage</property>
-                        <property name="use_stock">False</property>
+                        <property name="label">RPC Console</property>
                         <signal name="activate" handler="on_RPCMenuItem_activate" swapped="no"/>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkMenuItem" id="HelpMenuItem">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">_Help</property>
+                <property name="use_underline">True</property>
+                <child type="submenu">
+                  <object class="GtkMenu" id="HelpMenuSubmenu">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkImageMenuItem" id="AboutMenuItem">
+                        <property name="label">gtk-about</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <property name="use_underline">True</property>
+                        <property name="use_stock">True</property>
+                        <signal name="activate" handler="on_AboutMenuItem_activate" swapped="no"/>
                       </object>
                     </child>
                   </object>

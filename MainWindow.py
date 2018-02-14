@@ -373,6 +373,7 @@ class MainWindow(object):
 
         # Iterate through the blocks and extract the relevant data
         # This is reversed to show most recent transactions first
+        tx_hash_list = [tx[0] for tx in self.transactions_list_store]
         for block in reversed(blocks):
             if block['transactions']: # Check the block contains any transactions
                 for transaction in block['transactions']: # Loop through each transaction in the block
@@ -392,7 +393,7 @@ class MainWindow(object):
                             break
 
                     # Append new transactions to the treeview's backing list store in the correct format
-                    if transaction['transactionHash'] not in [tx[0] for tx in self.transactions_list_store]:
+                    if transaction['transactionHash'] not in tx_hash_list:
                         self.transactions_list_store.append([
                             transaction['transactionHash'],
                             # Determine the direction of the transfer (In/Out)
@@ -407,6 +408,7 @@ class MainWindow(object):
                             # The address as located earlier
                             address
                         ])
+                        tx_hash_list = [tx[0] for tx in self.transactions_list_store]
 
         # Remove any transactions that are no longer valid
         # e.g. in case the daemon has accidentally forked and listed some transactions that are invalid

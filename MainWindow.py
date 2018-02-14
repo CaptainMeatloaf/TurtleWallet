@@ -501,6 +501,9 @@ class MainWindow(object):
         # Initialize the inputs within the send transaction frame
         self.clear_send_ui()
 
+        # Show an initial status message
+        self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
             tmpconfig = json.loads(configFile.read())

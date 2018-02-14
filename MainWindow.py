@@ -369,7 +369,6 @@ class MainWindow(object):
                 self.currentTimeout += 1
                 
             self.set_error_status()
-            return
             return False
 
         # Iterate through the blocks and extract the relevant data
@@ -393,7 +392,6 @@ class MainWindow(object):
                             break
 
                     # Append new transactions to the treeview's backing list store in the correct format
-                    if transaction['transactionHash'] not in [r[0] for r in self.transactions_list_store]:
                     if transaction['transactionHash'] not in [tx[0] for tx in self.transactions_list_store]:
                         self.transactions_list_store.append([
                             transaction['transactionHash'],

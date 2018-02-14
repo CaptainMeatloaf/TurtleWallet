@@ -285,7 +285,7 @@ class MainWindow(object):
         :return:
         """
         self.builder.get_object("RecipientAddressEntry").set_text('')
-        self.builder.get_object("MixinSpinButton").set_value(0)
+        self.builder.get_object("MixinSpinButton").set_value(3)
         self.builder.get_object("AmountEntry").set_text('')
         self.builder.get_object("PaymentIDEntry").set_text('')
 
@@ -497,6 +497,10 @@ class MainWindow(object):
         self.builder.get_object("FeeEntry").set_text(str(float(global_variables.static_fee) / float(100)))
         
         
+
+        # Initialize the inputs within the send transaction frame
+        self.clear_send_ui()
+
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
             tmpconfig = json.loads(configFile.read())

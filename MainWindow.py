@@ -289,6 +289,51 @@ class MainWindow(object):
         self.builder.get_object("AmountEntry").set_text('')
         self.builder.get_object("PaymentIDEntry").set_text('')
 
+    def update_loop(self):
+        """
+        This method loops infinitely and refreshes the wallet data every 5 seconds.
+        """
+        while True:
+            try:
+                # Request the balance from the wallet
+                self.balances = global_variables.wallet_connection.request("getBalance")
+
+                # Request the addresses from the wallet (looks like you can have multiple?)
+                self.addresses = global_variables.wallet_connection.request("getAddresses")['addresses']
+
+                # Request the current status from the wallet
+                self.status = global_variables.wallet_connection.request("getStatus")
+
+                # Request all transactions related to our addresses from the wallet
+                # This returns a list of blocks with only our transactions populated in them
+                self.blocks = global_variables.wallet_connection.request("getTransactions", params={"blockCount" : self.status['blockCount'], "firstBlockIndex" : 1, "addresses": self.addresses})['items']
+
+                self.currentTimeout = 0
+                self.currentTry = 0
+
+            except ConnectionError as e:
+                main_logger.error(str(e))
+
+                #Checks to see if the daemon failed to respond 3 or more times in a row
+                if self.currentTimeout >= self.watchdogTimeout:
+                    #Checks to see if we have restarted the daemon 3 or more times already
+                    if self.currentTry <= self.watchdogMaxTry:
+                        #restart the daemon if conditions are meant
+                        self.restart_Daemon()
+                    else:
+                        #Here means the daemon failed 3 times in a row, and we restarted it 3 times with no successful connection. At this point we must give up.
+                        dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Walletd daemon could not be recovered!")
+                        dialog.format_secondary_text("Turtle Wallet has tried numerous times to relaunch the needed daemon and has failed. Please relaunch the wallet!")
+                        dialog.run()
+                        dialog.destroy()
+                        Gtk.main_quit()
+                else:
+                    self.currentTimeout += 1
+
+                self.set_error_status()
+
+            time.sleep(5) # Wait 5 seconds before doing it again
+
     def set_error_status(self):
         main_logger.error(global_variables.message_dict["FAILED_DAEMON_COMM"])
         self.builder.get_object("MainStatusLabel").set_label(global_variables.message_dict["FAILED_DAEMON_COMM"])
@@ -328,53 +373,19 @@ class MainWindow(object):
         This method refreshes all the values in the UI to represent the current
         state of the wallet.
         """
-        try:
-            # Request the balance from the wallet
-            balances = global_variables.wallet_connection.request("getBalance")
-            # Update the balance amounts, formatted as comma seperated with 2 decimal points
-            self.builder.get_object("AvailableBalanceAmountLabel").set_label("{:,.2f}".format(balances['availableBalance']/100.))
-            self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(balances['lockedAmount']/100.))
-            
-            # Request the addresses from the wallet (looks like you can have multiple?)
-            addresses = global_variables.wallet_connection.request("getAddresses")['addresses']
-            # Load the first address in for now - TODO: Check if multiple addresses need accounting for
-            self.builder.get_object("AddressTextBox").set_text(addresses[0])
 
-            # Request the current status from the wallet
-            status = global_variables.wallet_connection.request("getStatus")
+        # Update the balance amounts, formatted as comma seperated with 2 decimal points
+        if self.balances:
+            self.builder.get_object("AvailableBalanceAmountLabel").set_label("{:,.2f}".format(self.balances['availableBalance']/100.))
+            self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(self.balances['lockedAmount']/100.))
 
-            # Request all transactions related to our addresses from the wallet
-            # This returns a list of blocks with only our transactions populated in them
-            blocks = global_variables.wallet_connection.request("getTransactions", params={"blockCount" : status['blockCount'], "firstBlockIndex" : 1, "addresses": addresses})['items']
-            self.currentTimeout = 0
-            self.currentTry = 0
-            
-        except ConnectionError as e:
-            main_logger.error(str(e))
-            
-            #Checks to see if the daemon failed to respond 3 or more times in a row
-            if self.currentTimeout >= self.watchdogTimeout:
-                #Checks to see if we have restarted the daemon 3 or more times already
-                if self.currentTry <= self.watchdogMaxTry:
-                    #restart the daemon if conditions are meant
-                    self.restart_Daemon()
-                else:
-                    #Here means the daemon failed 3 times in a row, and we restarted it 3 times with no successful connection. At this point we must give up.
-                    dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Walletd daemon could not be recovered!")
-                    dialog.format_secondary_text("Turtle Wallet has tried numerous times to relaunch the needed daemon and has failed. Please relaunch the wallet!")
-                    dialog.run()
-                    dialog.destroy()
-                    Gtk.main_quit()
-            else:
-                self.currentTimeout += 1
-                
-            self.set_error_status()
-            return False
+        # Load the first address in for now - TODO: Check if multiple addresses need accounting for
+        if self.addresses:
+            self.builder.get_object("AddressTextBox").set_text(self.addresses[0])
 
         # Iterate through the blocks and extract the relevant data
-        # This is reversed to show most recent transactions first
         tx_hash_list = [tx[0] for tx in self.transactions_list_store]
-        for block in reversed(blocks):
+        for block in self.blocks:
             if block['transactions']: # Check the block contains any transactions
                 for transaction in block['transactions']: # Loop through each transaction in the block
                     # To locate the address, we need to find the relevant transfer within the transaction
@@ -394,13 +405,13 @@ class MainWindow(object):
 
                     # Append new transactions to the treeview's backing list store in the correct format
                     if transaction['transactionHash'] not in tx_hash_list:
-                        self.transactions_list_store.append([
+                        self.transactions_list_store.prepend([
                             transaction['transactionHash'],
                             # Determine the direction of the transfer (In/Out)
                             "In" if transaction['amount'] > 0 else "Out",
                             # Determine if the transaction is confirmed or not - block rewards take 40 blocks to confirm,
                             # transactions between wallets are marked as confirmed automatically with unlock time 0
-                            transaction['unlockTime'] is 0 or transaction['unlockTime'] <= status['blockCount'] - 40,
+                            transaction['unlockTime'] is 0 or transaction['unlockTime'] <= self.status['blockCount'] - 40,
                             # Format the amount as comma seperated with 2 decimal points
                             "{:,.2f}".format(transaction['amount']/100.),
                             # Format the transaction time for the user's local timezone
@@ -408,28 +419,28 @@ class MainWindow(object):
                             # The address as located earlier
                             address
                         ])
-                        tx_hash_list = [tx[0] for tx in self.transactions_list_store]
+                        tx_hash_list.append(transaction['transactionHash'])
 
         # Remove any transactions that are no longer valid
         # e.g. in case the daemon has accidentally forked and listed some transactions that are invalid
-        valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in blocks]
+        valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in self.blocks]
         rows = self.transactions_list_store.iter_children(None)
         while rows:
             columns = self.transactions_list_store.iter_children(rows)
-            if columns:
-                if self.transactions_list_store.get_value(columns, 0) not in valid_transactions:
-                    self.transactions_list_store.remove(columns)
+            if columns and self.transactions_list_store.get_value(columns, 0) not in valid_transactions:
+                self.transactions_list_store.remove(columns)
             rows = self.transactions_list_store.iter_next(rows)
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
-        block_height_string = "<b>Current block height</b> {}".format(status['blockCount'])
-        # Buffer the block count by 1 due to latency issues
-        # Using a remote daemon for example will almost always be behind one block.
-        if status['blockCount']+1 < status['knownBlockCount']:
-            block_height_string = "<b>Synchronizing with network...</b> [{} / {}]".format(status['blockCount'], status['knownBlockCount'])
-        status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
-        self.builder.get_object("MainStatusLabel").set_markup(status_label)
-        
+        if self.status:
+            block_height_string = "<b>Current block height</b> {}".format(self.status['blockCount'])
+            # Buffer the block count by 1 due to latency issues
+            # Using a remote daemon for example will almost always be behind one block.
+            if self.status['blockCount']+1 < self.status['knownBlockCount']:
+                block_height_string = "<b>Synchronizing with network...</b> [{} / {}]".format(self.status['blockCount'], self.status['knownBlockCount'])
+            status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
+            self.builder.get_object("MainStatusLabel").set_markup(status_label)
+
         #Logging here for debug purposes. Sloppy Joe..
         main_logger.debug("REFRESH STATS:" + "\r\n" +
                           "AvailableBalanceAmountLabel: {:,.2f}".format(balances['availableBalance']/100.) + "\r\n" +
@@ -449,6 +460,12 @@ class MainWindow(object):
         self.watchdogMaxTry = 3
         self.currentTimeout = 0
         self.currentTry = 0
+
+        # Initialize wallet data
+        self.balances = []
+        self.addresses = []
+        self.status = []
+        self.blocks = []
 
         # Get the transaction treeview's backing list store
         self.transactions_list_store = self.builder.get_object("HomeTransactionsListStore")
@@ -494,6 +511,11 @@ class MainWindow(object):
                 cFile.write(json.dumps(global_variables.wallet_config))
         except Exception as e:
             splash_logger.warn("Could not save config file: {}".format(e))
+
+        # Start the wallet data update loop in a new thread
+        self.update_thread = threading.Thread(target=self.update_loop)
+        self.update_thread.daemon = True
+        self.update_thread.start()
 
         # Register a function via Glib that gets called every 5 seconds to refresh the UI
         GLib.timeout_add_seconds(5, self.refresh_values)

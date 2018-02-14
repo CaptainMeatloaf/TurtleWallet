@@ -423,13 +423,16 @@ class MainWindow(object):
 
         # Remove any transactions that are no longer valid
         # e.g. in case the daemon has accidentally forked and listed some transactions that are invalid
-        valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in self.blocks]
-        rows = self.transactions_list_store.iter_children(None)
-        while rows:
-            columns = self.transactions_list_store.iter_children(rows)
-            if columns and self.transactions_list_store.get_value(columns, 0) not in valid_transactions:
-                self.transactions_list_store.remove(columns)
-            rows = self.transactions_list_store.iter_next(rows)
+        if self.blocks:
+            valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in self.blocks]
+            rows = self.transactions_list_store.iter_children(None)
+            while rows:
+                columns = self.transactions_list_store.iter_children(rows)
+                if columns and self.transactions_list_store.get_value(columns, 0) not in valid_transactions:
+                    self.transactions_list_store.remove(columns)
+                rows = self.transactions_list_store.iter_next(rows)
+        else:
+            self.transactions_list_store.clear()
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         if self.status:
@@ -441,12 +444,12 @@ class MainWindow(object):
             status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
-        #Logging here for debug purposes. Sloppy Joe..
-        main_logger.debug("REFRESH STATS:" + "\r\n" +
-                          "AvailableBalanceAmountLabel: {:,.2f}".format(balances['availableBalance']/100.) + "\r\n" +
-                          "LockedBalanceAmountLabel: {:,.2f}".format(balances['lockedAmount']/100.) + "\r\n" +
-                          "Address: " + str(addresses[0])  + "\r\n" +
-                           "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+            #Logging here for debug purposes. Sloppy Joe..
+            main_logger.debug("REFRESH STATS:" + "\r\n" +
+                              "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
+                              "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
+                              "Address: " + str(self.addresses[0])  + "\r\n" +
+                               "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
         return True
 

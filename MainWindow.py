@@ -24,7 +24,7 @@ class UILogHandler(logging.Handler):
     """
     This class is a custom Logging.Handler that fires off every time
     a message is added to the applications log. This shows similar to
-    what the log file does, but the verbose is set to INFO instead of 
+    what the log file does, but the verbose is set to INFO instead of
     debug to keep logs in UI slim, and logs in the file more beefy.
     """
     def __init__(self, textbuffer):
@@ -50,7 +50,7 @@ class MainWindow(object):
         """Called by GTK when the copy button is clicked"""
         self.builder.get_object("AddressTextBox")
         Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(self.builder.get_object("AddressTextBox").get_text(), -1)
-        
+
     def on_FeeSuggestionCheck_clicked(self, object, data=None):
         """Called by GTK when the FeeSuggestionCheck Checkbox is Toggled"""
         fee_entry = self.builder.get_object("FeeEntry")
@@ -61,7 +61,7 @@ class MainWindow(object):
         else:
             #enable fee entry
             fee_entry.set_sensitive(True)
-            
+
     def on_LogsMenuItem_activate(self, object, data=None):
         """Called by GTK when the LogsMenuItem Menu Item is Clicked
             This shows the log page on the main window"""
@@ -100,7 +100,7 @@ class MainWindow(object):
         """ Called by GTK when the RPCSend button has been clicked """
         method = self.builder.get_object("RPCMethodEntry").get_text()
         args = self.builder.get_object("RPCArgumentsEntry").get_text()
-        
+
         #Check the method and arg are somewhat valid
         if method == "":
             end_iter = self.RPCbuffer.get_end_iter()
@@ -112,7 +112,7 @@ class MainWindow(object):
             end_iter = self.RPCbuffer.get_end_iter()
             self.RPCbuffer.insert(end_iter, "\n\n" + 'ERROR: Invalid JSON in arguments given. Ex. \n {"blockCount":1000, "firstBlockIndex":1,"addresses":[ "22p4wUHAMndSscvtYErtqUaYrcUTvrZ9zhWwxc3JtkBHAnw4FJqenZyaePSApKWwJ5BjCJz1fKJoA6QHn5j6bVHg8A8dyhp"]}')
             return
-        
+
         #Send the request to RPC server and print results on textview
         try:
             r = global_variables.wallet_connection.request(method,args_dict)
@@ -121,17 +121,17 @@ class MainWindow(object):
         except Exception as e:
             end_iter = self.RPCbuffer.get_end_iter()
             self.RPCbuffer.insert(end_iter, "\n\n" + "ERROR:\n" + str(e))
-            
+
     def on_RPCTextView_size_allocate(self, *args):
         """The GTK Auto Scrolling method used to scroll RPC view when info is added"""
         adj = self.RPCScroller.get_vadjustment()
         adj.set_value(adj.get_upper() - adj.get_page_size())
-        
+
     def on_LogTextView_size_allocate(self, *args):
         """The GTK Auto Scrolling method used to scroll Log view when info is added"""
         adj = self.LogScroller.get_vadjustment()
         adj.set_value(adj.get_upper() - adj.get_page_size())
-        
+
 
     def on_AboutMenuItem_activate(self, object, data=None):
         """Called by GTK when the 'About' menu item is clicked"""
@@ -230,7 +230,7 @@ class MainWindow(object):
             self.builder.get_object("TransactionStatusLabel")\
                 .set_label("Slow down TRTL bro! The amount needs to be a number greater than 0.")
             return
-            
+
         #Determine Fee Settings
         #Get feeSuggest Checkbox widget
         feeSuggest = self.builder.get_object("FeeSuggestionCheck")
@@ -250,7 +250,7 @@ class MainWindow(object):
                 return
         else:
             fee = global_variables.static_fee
-            
+
         # Mixin
         mixin = int(self.builder.get_object("MixinSpinButton").get_text())
         body = {
@@ -395,7 +395,7 @@ class MainWindow(object):
                         desired_transfer_amount = (transaction['amount'] + transaction['fee']) * -1
                     else:
                         desired_transfer_amount = transaction['amount']
-                    
+
                     # Now loop through the transfers and find the address with the correctly transferred amount
                     for transfer in transaction['transfers']:
                         if transfer['amount'] == desired_transfer_amount:
@@ -457,7 +457,7 @@ class MainWindow(object):
         # Initialise the GTK builder and load the glade layout from the file
         self.builder = Gtk.Builder()
         self.builder.add_from_file("MainWindow.glade")
-        
+
         # Init. counters needed for watchdog function
         self.watchdogTimeout = 3
         self.watchdogMaxTry = 3
@@ -484,18 +484,18 @@ class MainWindow(object):
 
         # Setup the transaction spin button
         self.setup_spin_button()
-        
+
         # Setup UILogHandler so the Log Textview gets the same
         # information as the log file, with less verbose (INFO).
         uiHandler = UILogHandler(self.builder.get_object("LogBuffer"))
         uiHandler.setLevel(logging.INFO)
         main_logger.addHandler(uiHandler)
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
-        
+
         #Setup UI RPC variables
         self.RPCbuffer = self.builder.get_object("RPCTextView").get_buffer()
         self.RPCScroller = self.builder.get_object("RPCScrolledWindow")
-        
+
         #Set the default fee amount in the FeeEntry widget
         self.builder.get_object("FeeEntry").set_text(str(float(global_variables.static_fee) / float(100)))
 
@@ -537,8 +537,8 @@ class MainWindow(object):
 
         # Finally, show the window
         self.window.show_all()
-        
-  
+
+
 
     def setup_spin_button(self):
         """
@@ -552,4 +552,3 @@ class MainWindow(object):
         adjustment = Gtk.Adjustment(0, 0, 31, 1, 1, 1)
         spin_button = self.builder.get_object("MixinSpinButton")
         spin_button.configure(adjustment, 1, 0)
-

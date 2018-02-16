@@ -289,9 +289,9 @@ class MainWindow(object):
         self.builder.get_object("AmountEntry").set_text('')
         self.builder.get_object("PaymentIDEntry").set_text('')
 
-    def update_loop(self):
+    def request_wallet_data_loop(self):
         """
-        This method loops infinitely and refreshes the wallet data every 5 seconds.
+        This method loops indefinitely and requests the wallet data every 5 seconds.
         """
         while True:
             try:
@@ -306,7 +306,11 @@ class MainWindow(object):
 
                 # Request all transactions related to our addresses from the wallet
                 # This returns a list of blocks with only our transactions populated in them
-                self.blocks = global_variables.wallet_connection.request("getTransactions", params={"blockCount" : self.status['blockCount'], "firstBlockIndex" : 1, "addresses": self.addresses})['items']
+                self.blocks = global_variables.wallet_connection.request(
+                    "getTransactions", params={
+                        "blockCount": self.status['blockCount'],
+                        "firstBlockIndex": 1,
+                        "addresses": self.addresses})['items']
 
                 self.currentTimeout = 0
                 self.currentTry = 0
@@ -314,14 +318,14 @@ class MainWindow(object):
             except ConnectionError as e:
                 main_logger.error(str(e))
 
-                #Checks to see if the daemon failed to respond 3 or more times in a row
+                # Checks to see if the daemon failed to respond 3 or more times in a row
                 if self.currentTimeout >= self.watchdogTimeout:
-                    #Checks to see if we have restarted the daemon 3 or more times already
+                    # Checks to see if we have restarted the daemon 3 or more times already
                     if self.currentTry <= self.watchdogMaxTry:
-                        #restart the daemon if conditions are meant
+                        # Restart the daemon if conditions are met
                         self.restart_Daemon()
                     else:
-                        #Here means the daemon failed 3 times in a row, and we restarted it 3 times with no successful connection. At this point we must give up.
+                        # Here means the daemon failed 3 times in a row, and we restarted it 3 times with no successful connection. At this point we must give up.
                         dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Walletd daemon could not be recovered!")
                         dialog.format_secondary_text("Turtle Wallet has tried numerous times to relaunch the needed daemon and has failed. Please relaunch the wallet!")
                         dialog.run()
@@ -330,14 +334,11 @@ class MainWindow(object):
                 else:
                     self.currentTimeout += 1
 
-                self.set_error_status()
+                main_logger.error(global_variables.message_dict["FAILED_DAEMON_COMM"])
+                self.builder.get_object("MainStatusLabel").set_label(global_variables.message_dict["FAILED_DAEMON_COMM"])
 
             time.sleep(5) # Wait 5 seconds before doing it again
 
-    def set_error_status(self):
-        main_logger.error(global_variables.message_dict["FAILED_DAEMON_COMM"])
-        self.builder.get_object("MainStatusLabel").set_label(global_variables.message_dict["FAILED_DAEMON_COMM"])
-        
     def MainWindow_generic_dialog(self, title, message):
         """
         This is a generic dialog that can be passed a title and message to display, and shows OK and CANCEL buttons.
@@ -358,22 +359,20 @@ class MainWindow(object):
             return True
         else:
             return False
-        
+
     def restart_Daemon(self):
         """
-        This function gets called when during the refresh cycle, the daemon is found to be possibly dead or hanging.
+        This function gets called when during the wallet data request cycle, the daemon is found to be possibly dead or hanging.
         The function simply calls back to the 'start_wallet_daemon' in ConnectionManager, which will restart our
         daemon for us if needed.
         """
-        global_variables.wallet_connection.start_wallet_daemon(global_variables.wallet_connection.wallet_file,global_variables.wallet_connection.password)
-            
+        global_variables.wallet_connection.start_wallet_daemon(global_variables.wallet_connection.wallet_file, global_variables.wallet_connection.password)
 
-    def refresh_values(self):
-        """
-        This method refreshes all the values in the UI to represent the current
-        state of the wallet.
-        """
 
+    def refresh_ui(self):
+        """
+        This method refreshes all the values in the UI to represent the current state of the wallet.
+        """
         # Update the balance amounts, formatted as comma seperated with 2 decimal points
         if self.balances:
             self.builder.get_object("AvailableBalanceAmountLabel").set_label("{:,.2f}".format(self.balances['availableBalance']/100.))
@@ -444,13 +443,14 @@ class MainWindow(object):
             status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
-            #Logging here for debug purposes. Sloppy Joe..
+            # Logging here for debug purposes. Sloppy Joe..
             main_logger.debug("REFRESH STATS:" + "\r\n" +
                               "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
                               "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
                               "Address: " + str(self.addresses[0])  + "\r\n" +
                                "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
+        # Return True so GLib continues to call this method
         return True
 
     def __init__(self):
@@ -498,8 +498,6 @@ class MainWindow(object):
         
         #Set the default fee amount in the FeeEntry widget
         self.builder.get_object("FeeEntry").set_text(str(float(global_variables.static_fee) / float(100)))
-        
-        
 
         # Initialize the inputs within the send transaction frame
         self.clear_send_ui()
@@ -522,13 +520,13 @@ class MainWindow(object):
         except Exception as e:
             splash_logger.warn("Could not save config file: {}".format(e))
 
-        # Start the wallet data update loop in a new thread
-        self.update_thread = threading.Thread(target=self.update_loop)
+        # Start the wallet data request loop in a new thread
+        self.update_thread = threading.Thread(target=self.request_wallet_data_loop)
         self.update_thread.daemon = True
         self.update_thread.start()
 
         # Register a function via Glib that gets called every 5 seconds to refresh the UI
-        GLib.timeout_add_seconds(5, self.refresh_values)
+        GLib.timeout_add_seconds(5, self.refresh_ui)
 
         #These tabs should not be shown, even on show all
         noteBook = self.builder.get_object("MainNotebook")

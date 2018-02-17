@@ -425,11 +425,12 @@ class MainWindow(object):
             btc_price_usd = float(api_result.json()[0]['price_usd'])
             self.builder.get_object("DollarValueAmountLabel").set_text("{:,.2f}".format(
                 trtl_price_btc * btc_price_usd * float(balances['availableBalance']/100.)))
-            self.builder.get_object("DollarValueSymbolLabel").set_text("$")
+            self.builder.get_object("BTCValueAmountLabel").set_text("{:,.8f}".format(
+                trtl_price_btc * float(balances['availableBalance']/100.)))
         except (ValueError, KeyError, HTTPError) as e:
             main_logger.error("Failed to retrieve dollar value: {}".format(e))
-            self.builder.get_object("DollarValueAmountLabel").set_text("")
-            self.builder.get_object("DollarValueSymbolLabel").set_text("")
+            self.builder.get_object("DollarValueAmountLabel").set_text("---")
+            self.builder.get_object("BTCValueAmountLabel").set_text("---")
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         block_height_string = "<b>Current block height</b> {}".format(status['blockCount'])

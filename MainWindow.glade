@@ -214,7 +214,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="halign">center</property>
-                            <property name="orientation">vertical</property>
+                            <property name="spacing">16</property>
                             <child>
                               <object class="GtkLabel" id="AvailableBalanceLabel">
                                 <property name="visible">True</property>
@@ -233,7 +233,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                                 <property name="can_focus">False</property>
                                 <property name="margin_top">5</property>
                                 <property name="margin_bottom">5</property>
-                                <property name="spacing">5</property>
+                                <property name="spacing">8</property>
                                 <child>
                                   <object class="GtkLabel" id="AvailableBalanceTickerLabel">
                                     <property name="visible">True</property>
@@ -288,7 +288,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="halign">center</property>
-                            <property name="orientation">vertical</property>
+                            <property name="spacing">16</property>
                             <child>
                               <object class="GtkLabel" id="LockedBalanceLabel">
                                 <property name="visible">True</property>
@@ -307,7 +307,7 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                                 <property name="can_focus">False</property>
                                 <property name="margin_top">5</property>
                                 <property name="margin_bottom">5</property>
-                                <property name="spacing">5</property>
+                                <property name="spacing">8</property>
                                 <child>
                                   <object class="GtkLabel" id="LockedBalanceTickerLabel">
                                     <property name="visible">True</property>
@@ -402,11 +402,11 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="halign">center</property>
+                            <property name="spacing">8</property>
                             <child>
                               <object class="GtkLabel" id="BTCValueSymbolLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="xpad">6</property>
                                 <property name="label" translatable="yes">Ƀ</property>
                                 <attributes>
                                   <attribute name="scale" value="2"/>
@@ -445,12 +445,12 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="halign">center</property>
+                            <property name="spacing">8</property>
                             <child>
                               <object class="GtkLabel" id="DollarValueSymbolLabel">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <property name="halign">end</property>
-                                <property name="xpad">6</property>
                                 <property name="label" translatable="yes">$</property>
                                 <attributes>
                                   <attribute name="scale" value="2"/>

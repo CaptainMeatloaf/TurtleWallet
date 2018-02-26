@@ -424,8 +424,9 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                     <property name="can_focus">True</property>
                     <property name="hscroll_policy">natural</property>
                     <property name="model">HomeTransactionsListStore</property>
+                    <signal name="row-activated" handler="on_HomeTransactionsTreeView_row_activated" swapped="no"/>
                     <child internal-child="selection">
-                      <object class="GtkTreeSelection" id="treeview-selection1"/>
+                      <object class="GtkTreeSelection" id="HomeTransactionsTreeViewSelection"/>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn" id="DirectionColumn">
@@ -1085,10 +1086,235 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
     <property name="can_focus">False</property>
     <property name="stock">gtk-save</property>
     <property name="use_fallback">True</property>
+  <object class="GtkListStore" id="TransactionListStore">
+    <columns>
+      <!-- column-name Amount -->
+      <column type="gchararray"/>
+      <!-- column-name Address -->
+      <column type="gchararray"/>
+    </columns>
   </object>
   <object class="GtkImage" id="ResetMenuActiveImage">
     <property name="visible">True</property>
+  <object class="GtkDialog" id="TransactionDialog">
     <property name="can_focus">False</property>
     <property name="stock">gtk-refresh</property>
+    <property name="title" translatable="yes">Transaction Details</property>
+    <property name="modal">True</property>
+    <property name="window_position">center</property>
+    <property name="default_width">640</property>
+    <property name="default_height">300</property>
+    <property name="destroy_with_parent">True</property>
+    <property name="type_hint">dialog</property>
+    <property name="skip_taskbar_hint">True</property>
+    <property name="skip_pager_hint">True</property>
+    <property name="gravity">center</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="TransactionDialogVbox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="TransactionDialogActionArea">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="CloseButton">
+                <property name="label">gtk-close</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="TransactionBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox" id="TransactionDateBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkLabel" id="TransactionDateLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xpad">5</property>
+                    <property name="ypad">4</property>
+                    <property name="label" translatable="yes">Date:</property>
+                    <property name="width_chars">10</property>
+                    <property name="xalign">0</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="TransactionDateValue">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="TransactionAmountBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkLabel" id="TransactionAmountLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xpad">5</property>
+                    <property name="ypad">4</property>
+                    <property name="label" translatable="yes">Amount:</property>
+                    <property name="width_chars">10</property>
+                    <property name="xalign">0</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="TransactionAmountValue">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkBox" id="TransactionHashBox">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkLabel" id="TransactionHashLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xpad">5</property>
+                    <property name="ypad">4</property>
+                    <property name="label" translatable="yes">Hash:</property>
+                    <property name="width_chars">10</property>
+                    <property name="xalign">0</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="TransactionHashValue">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow" id="TransactionScrolledWindow">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="shadow_type">in</property>
+                <child>
+                  <object class="GtkTreeView" id="TransactionTreeview">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="model">TransactionListStore</property>
+                    <child internal-child="selection">
+                      <object class="GtkTreeSelection" id="TransactionTreeviewSelection"/>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="AmountCol">
+                        <property name="title" translatable="yes">Amount</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="AddressCol">
+                        <property name="title" translatable="yes">Address</property>
+                        <property name="expand">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">3</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
   </object>
 </interface>

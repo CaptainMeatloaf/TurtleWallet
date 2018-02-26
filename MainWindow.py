@@ -278,6 +278,25 @@ class MainWindow(object):
                 .set_label("Failed: {}".format(e))
             main_logger.error(global_variables.message_dict["FAILED_SEND_EXCEPTION"].format(e))
 
+    def on_HomeTransactionsTreeView_row_activated(self, iter, path, user_data=None):
+        """Called by GTK when a row is activated (double clicked) in the transactions treeview
+            This shows the transaction details dialog"""
+        # Get the dialog from the builder
+        transaction_dialog = self.builder.get_object("TransactionDialog")
+
+        # Populate the dialog with the transaction details
+        self.builder.get_object("TransactionDateValue").set_text("")
+        self.builder.get_object("TransactionAmountValue").set_text("")
+        self.builder.get_object("TransactionHashValue").set_text("")
+        transaction_list_store = self.builder.get_object("TransactionListStore")
+        transaction_list_store.clear()
+        transaction_list_store.append([])
+
+        # Run the dialog and await for it's response (in this case to be closed)
+        transaction_dialog.run()
+
+        # Hide the dialog upon it's closure
+        transaction_dialog.hide()
 
     def clear_send_ui(self):
         """

@@ -1111,7 +1111,6 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
   </object>
   <object class="GtkDialog" id="TransactionDialog">
     <property name="can_focus">False</property>
-    <property name="stock">gtk-refresh</property>
     <property name="title" translatable="yes">Transaction Details</property>
     <property name="modal">True</property>
     <property name="window_position">center</property>

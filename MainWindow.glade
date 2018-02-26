@@ -96,7 +96,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <property name="label">Reset Wallet</property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="image">ResetMenuActiveImage</property>
                         <property name="use_stock">False</property>
                         <signal name="activate" handler="on_ResetMenuItem_activate" swapped="no"/>
                       </object>

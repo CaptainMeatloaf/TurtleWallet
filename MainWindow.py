@@ -45,6 +45,8 @@ class MainWindow(object):
     def on_MainWindow_destroy(self, object, data=None):
         """Called by GTK when the main window is destroyed"""
         Gtk.main_quit() # Quit the GTK main loop
+        self._stop_update_thread.set() # Set the event to stop the thread
+        threading.Thread.join(self.update_thread, 5) # Wait until the thread terminates
 
     def on_CopyButton_clicked(self, object, data=None):
         """Called by GTK when the copy button is clicked"""
@@ -293,7 +295,7 @@ class MainWindow(object):
         """
         This method loops indefinitely and requests the wallet data every 5 seconds.
         """
-        while True:
+        while not self._stop_update_thread.isSet():
             try:
                 # Request the balance from the wallet
                 self.balances = global_variables.wallet_connection.request("getBalance")
@@ -521,6 +523,7 @@ class MainWindow(object):
             splash_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
+        self._stop_update_thread = threading.Event()
         self.update_thread = threading.Thread(target=self.request_wallet_data_loop)
         self.update_thread.daemon = True
         self.update_thread.start()

@@ -1086,6 +1086,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
     <property name="can_focus">False</property>
     <property name="stock">gtk-save</property>
     <property name="use_fallback">True</property>
+  </object>
   <object class="GtkListStore" id="TransactionListStore">
     <columns>
       <!-- column-name Amount -->
@@ -1094,8 +1095,6 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
       <column type="gchararray"/>
     </columns>
   </object>
-  <object class="GtkImage" id="ResetMenuActiveImage">
-    <property name="visible">True</property>
   <object class="GtkDialog" id="TransactionDialog">
     <property name="can_focus">False</property>
     <property name="stock">gtk-refresh</property>

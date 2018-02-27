@@ -286,21 +286,32 @@ class MainWindow(object):
         # Get the dialog from the builder
         transaction_dialog = self.builder.get_object("TransactionDialog")
 
-        # Populate the dialog with the transaction details
-        self.builder.get_object("TransactionDateValue").set_text(self.transactions_list_store[path][4])
-        self.builder.get_object("TransactionAmountValue").set_text(self.transactions_list_store[path][3])
-        self.builder.get_object("TransactionHashValue").set_text(self.transactions_list_store[path][0])
-        transaction_list_store = self.builder.get_object("TransactionListStore")
-        transaction_list_store.clear()
+        # Retrieve the selected transaction details
+        selected_transaction = None
         for block in self.blocks:
+            if selected_transaction:
+                break
             for transaction in block['transactions']:
                 if transaction['transactionHash'] == self.transactions_list_store[path][0]:
-                    for transfer in transaction['transfers']:
-                        transaction_list_store.append([
-                            "{:,.2f}".format(transfer['amount']/100.),
-                            transfer['address']
-                        ])
+                    selected_transaction = transaction
                     break
+
+        # Populate the dialog with the transaction details
+        self.builder.get_object("TransactionDateValue").set_text(datetime.fromtimestamp(
+            selected_transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"))
+        self.builder.get_object("TransactionBlockIndexValue").set_text(str(selected_transaction['blockIndex']))
+        self.builder.get_object("TransactionHashValue").set_text(selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
+        self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
+        self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
+        self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<None>")
+        transaction_list_store = self.builder.get_object("TransactionListStore")
+        transaction_list_store.clear()
+        for transfer in selected_transaction['transfers']:
+            transaction_list_store.append([
+                "{:,.2f}".format(transfer['amount']/100.),
+                transfer['address']
+            ])
 
         # Run the dialog and await for it's response (in this case to be closed)
         transaction_dialog.run()

@@ -287,12 +287,20 @@ class MainWindow(object):
         transaction_dialog = self.builder.get_object("TransactionDialog")
 
         # Populate the dialog with the transaction details
-        self.builder.get_object("TransactionDateValue").set_text("")
-        self.builder.get_object("TransactionAmountValue").set_text("")
-        self.builder.get_object("TransactionHashValue").set_text("")
+        self.builder.get_object("TransactionDateValue").set_text(self.transactions_list_store[path][4])
+        self.builder.get_object("TransactionAmountValue").set_text(self.transactions_list_store[path][3])
+        self.builder.get_object("TransactionHashValue").set_text(self.transactions_list_store[path][0])
         transaction_list_store = self.builder.get_object("TransactionListStore")
         transaction_list_store.clear()
-        transaction_list_store.append([])
+        for block in self.blocks:
+            for transaction in block['transactions']:
+                if transaction['transactionHash'] == self.transactions_list_store[path][0]:
+                    for transfer in transaction['transfers']:
+                        transaction_list_store.append([
+                            "{:,.2f}".format(transfer['amount']/100.),
+                            transfer['address']
+                        ])
+                    break
 
         # Run the dialog and await for it's response (in this case to be closed)
         transaction_dialog.run()

@@ -96,7 +96,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                         <property name="label">Reset Wallet</property>
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="image">ResetMenuActiveImage</property>
                         <property name="use_stock">False</property>
                         <signal name="activate" handler="on_ResetMenuItem_activate" swapped="no"/>
                       </object>
@@ -1111,7 +1110,6 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
   </object>
   <object class="GtkDialog" id="TransactionDialog">
     <property name="can_focus">False</property>
-    <property name="stock">gtk-refresh</property>
     <property name="title" translatable="yes">Transaction Details</property>
     <property name="modal">True</property>
     <property name="window_position">center</property>
@@ -1186,6 +1184,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionDateValue">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -1229,6 +1228,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionAmountValue">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -1272,6 +1272,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionHashValue">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>

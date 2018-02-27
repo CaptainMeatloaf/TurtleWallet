@@ -45,6 +45,8 @@ class MainWindow(object):
     def on_MainWindow_destroy(self, object, data=None):
         """Called by GTK when the main window is destroyed"""
         Gtk.main_quit() # Quit the GTK main loop
+        self._stop_update_thread.set() # Set the event to stop the thread
+        threading.Thread.join(self.update_thread, 5) # Wait until the thread terminates
 
     def on_CopyButton_clicked(self, object, data=None):
         """Called by GTK when the copy button is clicked"""
@@ -285,12 +287,20 @@ class MainWindow(object):
         transaction_dialog = self.builder.get_object("TransactionDialog")
 
         # Populate the dialog with the transaction details
-        self.builder.get_object("TransactionDateValue").set_text("")
-        self.builder.get_object("TransactionAmountValue").set_text("")
-        self.builder.get_object("TransactionHashValue").set_text("")
+        self.builder.get_object("TransactionDateValue").set_text(self.transactions_list_store[path][4])
+        self.builder.get_object("TransactionAmountValue").set_text(self.transactions_list_store[path][3])
+        self.builder.get_object("TransactionHashValue").set_text(self.transactions_list_store[path][0])
         transaction_list_store = self.builder.get_object("TransactionListStore")
         transaction_list_store.clear()
-        transaction_list_store.append([])
+        for block in self.blocks:
+            for transaction in block['transactions']:
+                if transaction['transactionHash'] == self.transactions_list_store[path][0]:
+                    for transfer in transaction['transfers']:
+                        transaction_list_store.append([
+                            "{:,.2f}".format(transfer['amount']/100.),
+                            transfer['address']
+                        ])
+                    break
 
         # Run the dialog and await for it's response (in this case to be closed)
         transaction_dialog.run()
@@ -312,7 +322,7 @@ class MainWindow(object):
         """
         This method loops indefinitely and requests the wallet data every 5 seconds.
         """
-        while True:
+        while not self._stop_update_thread.isSet():
             try:
                 # Request the balance from the wallet
                 self.balances = global_variables.wallet_connection.request("getBalance")
@@ -540,6 +550,7 @@ class MainWindow(object):
             splash_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
+        self._stop_update_thread = threading.Event()
         self.update_thread = threading.Thread(target=self.request_wallet_data_loop)
         self.update_thread.daemon = True
         self.update_thread.start()

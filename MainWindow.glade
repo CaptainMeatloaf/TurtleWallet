@@ -1519,5 +1519,8 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
         </child>
       </object>
     </child>
+    <action-widgets>
+      <action-widget response="-7">CloseButton</action-widget>
+    </action-widgets>
   </object>
 </interface>

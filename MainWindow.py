@@ -464,12 +464,9 @@ class MainWindow(object):
         # e.g. in case the daemon has accidentally forked and listed some transactions that are invalid
         if self.blocks:
             valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in self.blocks]
-            rows = self.transactions_list_store.iter_children(None)
-            while rows:
-                columns = self.transactions_list_store.iter_children(rows)
-                if columns and self.transactions_list_store.get_value(columns, 0) not in valid_transactions:
-                    self.transactions_list_store.remove(columns)
-                rows = self.transactions_list_store.iter_next(rows)
+            for index, row in enumerate(self.transactions_list_store):
+                if row[0] not in valid_transactions:
+                    self.transactions_list_store.remove(row.iter)
         else:
             self.transactions_list_store.clear()
 

@@ -424,13 +424,13 @@ class MainWindow(object):
 
         # Remove any transactions that are no longer valid
         # e.g. in case the daemon has accidentally forked and listed some transactions that are invalid
-        if self.blocks:
-            valid_transactions = [transaction['transactionHash'] for transaction in block['transactions'] for block in self.blocks]
-            for index, row in enumerate(self.transactions_list_store):
-                if row[0] not in valid_transactions:
-                    self.transactions_list_store.remove(row.iter)
-        else:
-            self.transactions_list_store.clear()
+        valid_transactions = []
+        for block in self.blocks:
+            for transaction in block['transactions']:
+                valid_transactions.append(transaction['transactionHash'])
+        for transaction in self.transactions_list_store:
+            if transaction[0] not in valid_transactions:
+                self.transactions_list_store.remove(transaction.iter)
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         if self.status:

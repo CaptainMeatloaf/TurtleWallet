@@ -46,7 +46,7 @@ logger.addHandler(fh)
 # logger.addHandler(ch)
 # ---
 
-logger.info("Tutle Wallet Stated")
+logger.info("Turtle Wallet Started")
 signal.signal(signal.SIGINT, signal.SIG_DFL) # Required to handle interrupts closing the program
 logger.info("Starting Splash Screen")
 splash_screen = SplashScreen() # Create a new instance of the splash screen

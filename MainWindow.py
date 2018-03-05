@@ -294,23 +294,38 @@ class MainWindow(object):
             for transaction in block['transactions']:
                 if transaction['transactionHash'] == self.transactions_list_store[path][0]:
                     selected_transaction = transaction
+                    block_hash = block['blockHash']
                     break
+
+        if not selected_transaction:
+            error_dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Error")
+            error_dialog.format_secondary_text("Transaction with the following hash no longer exists: %s" % self.transactions_list_store[path][0])
+            error_dialog.run()
+            error_dialog.destroy()
+            return
 
         # Populate the dialog with the transaction details
         self.builder.get_object("TransactionDateValue").set_text(datetime.fromtimestamp(
             selected_transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"))
-        self.builder.get_object("TransactionBlockIndexValue").set_text(str(selected_transaction['blockIndex']))
-        self.builder.get_object("TransactionHashValue").set_text(selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionBlockIndexLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_block" % block_hash)
+        self.builder.get_object("TransactionBlockIndexLink").set_label(str(selected_transaction['blockIndex']))
+        self.builder.get_object("TransactionBlockIndexLink").set_tooltip_text("Load Block Explorer")
+        self.builder.get_object("TransactionHashLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_transaction" % selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionHashLink").set_label(selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionHashLink").set_tooltip_text("Load Block Explorer")
         self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
         self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
+        self.builder.get_object("TransactionStateValue").set_text(str(transaction['state']))
+        self.builder.get_object("TransactionUnlockTimeValue").set_text(str(transaction['unlockTime']))
         self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
-        self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<None>")
+        self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<NONE>")
         transaction_list_store = self.builder.get_object("TransactionListStore")
         transaction_list_store.clear()
         for transfer in selected_transaction['transfers']:
             transaction_list_store.append([
+                transfer['type'],
                 "{:,.2f}".format(transfer['amount']/100.),
-                transfer['address']
+                transfer['address'] if transfer['address'] else "<UNKNOWN>"
             ])
 
         # Run the dialog and await for it's response (in this case to be closed)

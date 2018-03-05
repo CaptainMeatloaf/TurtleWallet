@@ -35,7 +35,7 @@ Getting this wallet running is easy.
    - `export DAEMON_HOST` - default is http://127.0.0.1
    - An example launch command for `walletd` that means you do not have to start the daemon (ie, `Turtlecoind`) alongside it would be as follows:
         ```
-        ./walletd -w <wallet file name> -p <wallet password> --local
+        ./walletd -w <wallet file name> -p <wallet password> --local --rpc-password <a password you choose for rpc>
         ```
 Having installed the prerequisites, you can start it from a terminal:
 

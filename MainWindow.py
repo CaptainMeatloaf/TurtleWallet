@@ -16,9 +16,27 @@ from __init__ import __version__
 import global_variables
 import logging
 import json
+from enum import IntEnum
 
 # Get Logger made in start.py
 main_logger = logging.getLogger('trtl_log.main')
+
+
+class WalletTransactionState(IntEnum):
+    """Defines the possible states for a transaction."""
+    succeeded = 0,
+    failed = 1,
+    cancelled = 2,
+    created = 3,
+    deleted = 4
+
+
+class WalletTransferType(IntEnum):
+    """Defines the possible types of a transfer within a transaction."""
+    usual = 0,
+    donation = 1,
+    change = 2
+
 
 class UILogHandler(logging.Handler):
     """
@@ -315,7 +333,7 @@ class MainWindow(object):
         self.builder.get_object("TransactionHashLink").set_tooltip_text("Load Block Explorer")
         self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
         self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
-        self.builder.get_object("TransactionStateValue").set_text(str(transaction['state']))
+        self.builder.get_object("TransactionStateValue").set_text(WalletTransactionState(transaction['state']).name.capitalize())
         self.builder.get_object("TransactionUnlockTimeValue").set_text(str(transaction['unlockTime']))
         self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
         self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<NONE>")
@@ -323,7 +341,7 @@ class MainWindow(object):
         transaction_list_store.clear()
         for transfer in selected_transaction['transfers']:
             transaction_list_store.append([
-                transfer['type'],
+                WalletTransferType(transfer['type']).name.capitalize(),
                 "{:,.2f}".format(transfer['amount']/100.),
                 transfer['address'] if transfer['address'] else "<UNKNOWN>"
             ])

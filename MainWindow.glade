@@ -1104,7 +1104,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
   <object class="GtkListStore" id="TransactionListStore">
     <columns>
       <!-- column-name Type -->
-      <column type="gint"/>
+      <column type="gchararray"/>
       <!-- column-name Amount -->
       <column type="gchararray"/>
       <!-- column-name Address -->

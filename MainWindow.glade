@@ -1207,15 +1207,14 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
               <object class="GtkBox" id="TransactionBlockIndexBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="spacing">10</property>
                 <child>
                   <object class="GtkLabel" id="TransactionBlockIndexLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="xpad">5</property>
                     <property name="ypad">4</property>
-                    <property name="label" translatable="yes">Block Index:</property>
-                    <property name="width_chars">15</property>
+                    <property name="label" translatable="yes">Block Height:</property>
+                    <property name="width_chars">14</property>
                     <property name="xalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -1253,7 +1252,6 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
               <object class="GtkBox" id="TransactionHashBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="spacing">10</property>
                 <child>
                   <object class="GtkLabel" id="TransactionHashLabel">
                     <property name="visible">True</property>
@@ -1261,7 +1259,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                     <property name="xpad">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Hash:</property>
-                    <property name="width_chars">15</property>
+                    <property name="width_chars">14</property>
                     <property name="xalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -1435,7 +1433,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                     <property name="can_focus">False</property>
                     <property name="xpad">5</property>
                     <property name="ypad">4</property>
-                    <property name="label" translatable="yes">Unlock Time:</property>
+                    <property name="label" translatable="yes">Unlock Height:</property>
                     <property name="width_chars">15</property>
                     <property name="xalign">0</property>
                     <attributes>
@@ -1478,7 +1476,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                     <property name="can_focus">False</property>
                     <property name="xpad">5</property>
                     <property name="ypad">4</property>
-                    <property name="label" translatable="yes">Extra:</property>
+                    <property name="label" translatable="yes">Extra Data:</property>
                     <property name="width_chars">15</property>
                     <property name="xalign">0</property>
                     <attributes>

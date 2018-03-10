@@ -96,29 +96,24 @@ class WalletConnection(object):
                 walletd_args.extend(["--daemon-port", remote_daemon_port])
         else:
             walletd_args.append("--local")
-        #checks if existing daemon has been found
+
+        # Check if an existing daemon is running
         if existing_daemon:
             print(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
-            WC_logger.info(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
-            #checks if existing daemon is valid (Our daemon and not a different or modified one)
-            if self.check_existing_daemon(existing_daemon,good_daemon) == False:
-                print(global_variables.message_dict["INVALID_DAEMON"])
-                WC_logger.info(global_variables.message_dict["INVALID_DAEMON"])
-                #if a invlaid daemon is found, we terminate it and start a new one
-                existing_daemon.terminate()
-                existing_daemon.wait()
-                walletd = Popen(walletd_args)
-            else:
-                #existing daemon found to be valid, simply return the existing process object
-                return existing_daemon
-        else:
-            #No existing daemon found, start new instance
-            walletd = Popen(walletd_args)
+            WC_logger.warning(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
 
-        # Poll the daemon, if poll returns None the daemon is active.
+            # Terminate the daemon because the rpc password will be different, so need a new instance
+            existing_daemon.terminate()
+            existing_daemon.wait()
+
+        # Start the daemon
+        walletd = Popen(walletd_args)
+
+        # Poll the daemon, if poll returns None the daemon is active
         while walletd.poll():
             time.sleep(1)
-        # So now that the daemon is active, the password maybe invalid or
+
+        # So now that the daemon is active, the password may be invalid or
         # the user is still running Turtled and the daemon might die.
         # This is an attempt to wait for that to process.
         # When the main window appears the request status will naturally fail if the daemon is not running.

@@ -60,6 +60,8 @@ class SplashScreen(object):
         fail_count = 0
         try:
             global_variables.wallet_connection = WalletConnection(wallet_file, wallet_password)
+            block_count = 0
+            known_block_count = 0
             # Loop until the block count is greater than or equal to the known block count.
             # This should guarantee us that the daemon is running and synchronized before the main
             # window opens.
@@ -71,10 +73,18 @@ class SplashScreen(object):
                     if not global_variables.wallet_connection.check_daemon_running():
                         splash_logger.error(global_variables.message_dict["EXITED_DAEMON"])
                         raise ValueError(global_variables.message_dict["EXITED_DAEMON"])
+
                     resp = global_variables.wallet_connection.request('getStatus')
+
+                    # The known block count occasionally temporarily drops
+                    # If it drops below the block count, we don't want to prematurely open the wallet
+                    if resp['knownBlockCount'] < known_block_count:
+                        splash_logger.warning("Known block count {} has dropped from its previous value {}".format(resp['knownBlockCount'], known_block_count))
+                        continue
+
                     block_count = resp['blockCount']
                     known_block_count = resp['knownBlockCount']
-                    
+
                     # It's possible the RPC server is running but the daemon hasn't received
                     # the known block count yet. We need to wait on that before comparing block height.
                     if known_block_count == 0:

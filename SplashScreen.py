@@ -90,17 +90,13 @@ class SplashScreen(object):
                     if known_block_count == 0:
                         GLib.idle_add(self.update_status, "Waiting on known block count...")
                         continue
-
-                    days_behind = ((known_block_count - block_count) * 30) / (60 * 60 * 24)
-                    percent_synced = int((float(block_count) / float(known_block_count)) * 100)
-
-                    GLib.idle_add(self.update_status, "Synchronizing...{}%\n[{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind))
-                    splash_logger.debug("Synchronizing...{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind))
+                    GLib.idle_add(self.update_status, "Syncing... [{} / {}]".format(block_count, known_block_count))
+                    splash_logger.debug("Syncing... [{} / {}]".format(block_count, known_block_count))
                     # Even though we check known block count, leaving it in there in case of weird edge cases
                     # Buffer the block count by 1 due to latency issues, remote node will almost always be ahead by one
                     if (known_block_count > 0) and (block_count+1 >= known_block_count):
-                        GLib.idle_add(self.update_status, "Wallet is synchronized, opening...")
-                        splash_logger.info("Wallet successfully synchronized, opening wallet")
+                        GLib.idle_add(self.update_status, "Wallet is synced, opening...")
+                        splash_logger.info("Wallet successfully synced, opening wallet")
                         break
                 except ConnectionError as e:
                     fail_count += 1

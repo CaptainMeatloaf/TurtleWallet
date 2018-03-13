@@ -158,29 +158,25 @@ class MainWindow(object):
         :param data: unused
         :return:
         """
-        # Stop the update thread and wait for it to terminate prior to the reset
-        self._stop_update_thread.set()
-        self.update_thread.join()
-
         r = global_variables.wallet_connection.request("reset")
         if not r:
+            # Re-initialize wallet data so the UI doesn't refresh with outdated data
+            self.balances = []
+            self.addresses = []
+            self.status = []
+            self.blocks = []
+
+            # Clear/reset UI fields immediately rather than waiting for refresh UI task
+            self.builder.get_object("AvailableBalanceAmountLabel").set_label("{:,.2f}".format(0))
+            self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(0))
+            self.transactions_list_store.clear()
+            self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             main_logger.info(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             dialog.run()
             dialog.destroy()
-
-            # Clear the transaction list store
-            self.transactions_list_store.clear()
-
-            # Show an initial status message
-            self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
-
-            # Re-initialize wallet data
-            self.balances = []
-            self.addresses = []
-            self.status = []
-            self.blocks = []
 
         else:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.CANCEL, "Error resetting")
@@ -188,12 +184,6 @@ class MainWindow(object):
             main_logger.error(global_variables.message_dict["FAILED_WALLET_RESET"])
             dialog.run()
             dialog.destroy()
-
-        # Start the update thread again
-        self._stop_update_thread.clear()
-        self.update_thread = threading.Thread(target=self.request_wallet_data_loop)
-        self.update_thread.daemon = True
-        self.update_thread.start()
 
     def on_SaveMenuItem_activate(self, object, data=None):
         """

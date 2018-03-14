@@ -460,21 +460,6 @@ class MainWindow(object):
         for block in self.blocks:
             if block['transactions']: # Check the block contains any transactions
                 for transaction in block['transactions']: # Loop through each transaction in the block
-                    # To locate the address, we need to find the relevant transfer within the transaction
-                    address = None
-                    if transaction['amount'] < 0: # If the transaction was sent from this address
-                        # Get the desired transfer amount, accounting for the fee and the transaction being
-                        # negative as it was sent, not received
-                        desired_transfer_amount = (transaction['amount'] + transaction['fee']) * -1
-                    else:
-                        desired_transfer_amount = transaction['amount']
-
-                    # Now loop through the transfers and find the address with the correctly transferred amount
-                    for transfer in transaction['transfers']:
-                        if transfer['amount'] == desired_transfer_amount:
-                            address = transfer['address']
-                            break
-
                     # Append new transactions to the treeview's backing list store in the correct format
                     if transaction['transactionHash'] not in tx_hash_list:
                         self.transactions_list_store.prepend([
@@ -488,8 +473,6 @@ class MainWindow(object):
                             "{:,.2f}".format(transaction['amount']/100.),
                             # Format the transaction time for the user's local timezone
                             datetime.fromtimestamp(transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"),
-                            # The address as located earlier
-                            address
                         ])
                         tx_hash_list.append(transaction['transactionHash'])
 

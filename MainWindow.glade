@@ -57,8 +57,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
       <column type="gchararray"/>
       <!-- column-name Date -->
       <column type="gchararray"/>
-      <!-- column-name Address -->
-      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkTextBuffer" id="LogBuffer"/>
@@ -431,19 +429,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                       <object class="GtkTreeSelection" id="HomeTransactionsTreeViewSelection"/>
                     </child>
                     <child>
-                      <object class="GtkTreeViewColumn" id="HashColumn">
-                        <property name="visible">False</property>
-                        <property name="sizing">fixed</property>
-                        <property name="title" translatable="yes">Hash</property>
-                        <child>
-                          <object class="GtkCellRendererText" id="HashCellRenderer"/>
-                          <attributes>
-                            <attribute name="text">0</attribute>
-                          </attributes>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
                       <object class="GtkTreeViewColumn" id="DirectionColumn">
                         <property name="sizing">fixed</property>
                         <property name="title" translatable="yes">Direction</property>
@@ -490,14 +475,13 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                       </object>
                     </child>
                     <child>
-                      <object class="GtkTreeViewColumn" id="AddressColumn">
-                        <property name="resizable">True</property>
-                        <property name="sizing">autosize</property>
-                        <property name="title" translatable="yes">Address</property>
+                      <object class="GtkTreeViewColumn" id="HashColumn">
+                        <property name="sizing">fixed</property>
+                        <property name="title" translatable="yes">Hash</property>
                         <child>
-                          <object class="GtkCellRendererText" id="AddressCellRenderer"/>
+                          <object class="GtkCellRendererText" id="HashCellRenderer"/>
                           <attributes>
-                            <attribute name="text">5</attribute>
+                            <attribute name="text">0</attribute>
                           </attributes>
                         </child>
                       </object>

@@ -17,6 +17,7 @@ It also has the following prerequisites, installed via `pip`
 * psutil
 * requests
 * tzlocal
+* enum34
 
 __WINDOWS__: PyGObject instructions for Windows requires MSYS to be running. Some of the python packages are not permitted on this
 platform and additionally it adds some overhead to development. This [installer](https://sourceforge.net/projects/pygobjectwin32/) installs the required GTK libs natively.

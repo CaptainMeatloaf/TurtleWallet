@@ -192,16 +192,13 @@ class MainWindow(object):
             spend_secret_key = r.get('spendSecretKey', 'N/A')
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,
                                        Gtk.ButtonsType.OK, "Secret Keys")
-            # Find the widget responsible for the OK button
-            ok_btn = dialog.get_widget_for_response(response_id=Gtk.ResponseType.OK)
-            # Modify the OK button label to Copy
-            ok_btn.set_label("Copy")
             keys_text = "View secret: {}\nSpend secret: {}".format(view_secret_key, spend_secret_key)
             dialog.format_secondary_text(keys_text)
-            response = dialog.run()
-            if response == Gtk.ResponseType.OK:
-                # Copy the keys to the clipboard
-                copy_text(keys_text)
+            copy_button = Gtk.Button.new_with_label("Copy")
+            dialog.get_message_area().add(copy_button)
+            copy_button.show()
+            copy_button.connect_object("clicked", copy_text, keys_text)
+            dialog.run()
             dialog.destroy()
         except ValueError as e:
             # The request will throw a value error if the RPC server sends us an error response

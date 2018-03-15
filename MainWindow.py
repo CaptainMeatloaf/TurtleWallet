@@ -17,6 +17,8 @@ import global_variables
 import logging
 import json
 
+from HelperFunctions import copy_text
+
 # Get Logger made in start.py
 main_logger = logging.getLogger('trtl_log.main')
 
@@ -51,7 +53,7 @@ class MainWindow(object):
     def on_CopyButton_clicked(self, object, data=None):
         """Called by GTK when the copy button is clicked"""
         self.builder.get_object("AddressTextBox")
-        Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(self.builder.get_object("AddressTextBox").get_text(), -1)
+        copy_text(self.builder.get_object("AddressTextBox").get_text())
 
     def on_FeeSuggestionCheck_clicked(self, object, data=None):
         """Called by GTK when the FeeSuggestionCheck Checkbox is Toggled"""
@@ -158,17 +160,55 @@ class MainWindow(object):
         :param data: unused
         :return:
         """
-        r = global_variables.wallet_connection.request("reset")
-        if not r:
+        try:
+            r = global_variables.wallet_connection.request("reset")
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             main_logger.info(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             dialog.run()
             dialog.destroy()
-        else:
+        except ValueError as e:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.CANCEL, "Error resetting")
             dialog.format_secondary_text(global_variables.message_dict["FAILED_WALLET_RESET"])
             main_logger.error(global_variables.message_dict["FAILED_WALLET_RESET"])
+            dialog.run()
+            dialog.destroy()
+
+    def on_ExportKeysMenuItem_activate(self, object, data=None):
+        """
+        Export the wallet's secret keys to a dialog with a button
+        enabling users to copy the keys to the clipboard.
+        :param object:
+        :param data:
+        :return:
+        """
+        try:
+            # Capture the secret view key
+            r = global_variables.wallet_connection.request("getViewKey")
+            view_secret_key = r.get('viewSecretKey', 'N/A')
+            source_address = self.builder.get_object("AddressTextBox").get_text()
+            # Capture the secret spend key for this specific address
+            r = global_variables.wallet_connection.request("getSpendKeys", params={'address': source_address})
+            spend_secret_key = r.get('spendSecretKey', 'N/A')
+            dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,
+                                       Gtk.ButtonsType.OK, "Secret Keys")
+            # Find the widget responsible for the OK button
+            ok_btn = dialog.get_widget_for_response(response_id=Gtk.ResponseType.OK)
+            # Modify the OK button label to Copy
+            ok_btn.set_label("Copy")
+            keys_text = "View secret: {}\nSpend secret: {}".format(view_secret_key, spend_secret_key)
+            dialog.format_secondary_text(keys_text)
+            response = dialog.run()
+            if response == Gtk.ResponseType.OK:
+                # Copy the keys to the clipboard
+                copy_text(keys_text)
+            dialog.destroy()
+        except ValueError as e:
+            # The request will throw a value error if the RPC server sends us an error response
+            dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR,
+                                       Gtk.ButtonsType.CANCEL, "Error exporting keys")
+            dialog.format_secondary_text(
+                "Failed to retrieve keys from the wallet!")
             dialog.run()
             dialog.destroy()
 
@@ -181,19 +221,20 @@ class MainWindow(object):
         :param data: unused
         :return:
         """
-        r = global_variables.wallet_connection.request("save")
-        if not r:
+        try:
+            r = global_variables.wallet_connection.request("save")
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,Gtk.ButtonsType.OK, "Wallet Saved")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_SAVE"])
             main_logger.info(global_variables.message_dict["SUCCESS_WALLET_SAVE"])
             dialog.run()
             dialog.destroy()
-        else:
+        except ValueError as e:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR,Gtk.ButtonsType.CANCEL, "Error saving")
             dialog.format_secondary_text(global_variables.message_dict["FAILED_WALLET_SAVE"])
             main_logger.error(global_variables.message_dict["FAILED_WALLET_SAVE"])
             dialog.run()
             dialog.destroy()
+
 
     def on_SendButton_clicked(self, object, data=None):
         """

@@ -14,7 +14,7 @@ def get_wallet_daemon_path():
     back to looking at the current working directory.
     For Windows (nt), the extension .exe is appended.
     :return: path to the walletd executable
-    
+
     Note: We need a duplicate of this function in the splash to find the exe,
     to create a wallet before connection happens.
     """
@@ -36,7 +36,7 @@ def copy_text(text_to_copy, length=-1):
     :return:
     """
     # From GTK doc: copies the text and the length of text, in bytes, or -1, to calculate the length
-    Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(text_to_copy, -1)
+    Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(text_to_copy, length)
 
 
 def get_rpc_password():

@@ -186,21 +186,30 @@ class MainWindow(object):
             # Capture the secret view key
             r = global_variables.wallet_connection.request("getViewKey")
             view_secret_key = r.get('viewSecretKey', 'N/A')
-            source_address = self.builder.get_object("AddressTextBox").get_text()
+
             # Capture the secret spend key for this specific address
-            r = global_variables.wallet_connection.request("getSpendKeys", params={'address': source_address})
+            r = global_variables.wallet_connection.request("getSpendKeys", params={'address': self.addresses[0]})
             spend_secret_key = r.get('spendSecretKey', 'N/A')
+
+            # Show a message box containing the secret keys
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,
                                        Gtk.ButtonsType.OK, "Secret Keys")
             keys_text = "View secret: {}\nSpend secret: {}".format(view_secret_key, spend_secret_key)
-            dialog.format_secondary_text(keys_text)
-            copy_button = Gtk.Button.new_with_label("Copy")
-            dialog.get_message_area().add(copy_button)
-            copy_button.show()
+            keys_text_markup = "<b>View secret:</b> {}\n\n<b>Spend secret:</b> {}".format(view_secret_key, spend_secret_key)
+            dialog.format_secondary_markup(keys_text_markup)
+            copy_image = Gtk.Image()
+            copy_image.set_from_stock(Gtk.STOCK_COPY, Gtk.IconSize.BUTTON)
+            copy_button = Gtk.Button(halign=Gtk.Align.CENTER)
+            copy_button.set_image(copy_image)
+            copy_button.set_always_show_image(True)
+            copy_button.set_tooltip_text("Copy")
             copy_button.connect_object("clicked", copy_text, keys_text)
+            dialog.get_message_area().add(copy_button)
+            dialog.show_all()
             dialog.run()
             dialog.destroy()
-        except ValueError as e:
+
+        except ValueError:
             # The request will throw a value error if the RPC server sends us an error response
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR,
                                        Gtk.ButtonsType.CANCEL, "Error exporting keys")

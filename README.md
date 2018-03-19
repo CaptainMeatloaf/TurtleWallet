@@ -42,7 +42,7 @@ Having installed the prerequisites, you can start it from a terminal:
 ```
 # WINDOWS users would use SET instead of export here
 export TURTLE_HOME=/users/myuser/TurtleCoin-linux/
-python start.py -w <wallet file location> -p <wallet password>
+python start.py
 ```
 
 And everything should start up as intended, provided you installed everything correctly.

@@ -524,7 +524,7 @@ class MainWindow(object):
             with open(global_variables.wallet_config_file,'w') as cFile:
                 cFile.write(json.dumps(global_variables.wallet_config))
         except Exception as e:
-            splash_logger.warn("Could not save config file: {}".format(e))
+            main_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
         self._stop_update_thread = threading.Event()

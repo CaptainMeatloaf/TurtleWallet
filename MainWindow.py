@@ -354,6 +354,7 @@ class MainWindow(object):
                                    title)
 
         dialog.set_title(message)
+        dialog.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
         dialog.show_all()
         response = dialog.run()
         dialog.destroy()

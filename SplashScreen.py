@@ -415,7 +415,7 @@ class SplashScreen(object):
                     # Start the wallet initialisation on a new thread
                     thread = threading.Thread(target=self.initialise, args=(os.path.join(cur_dir,createReturn[0] + ".wallet"), createReturn[1]))
                     thread.start()
-            else:
+            elif response == 9:
                 #select wallet
                 global_variables.wallet_config['walletPath'] = self.prompt_wallet_dialog()
                 if global_variables.wallet_config['walletPath']:
@@ -443,3 +443,5 @@ class SplashScreen(object):
                 else:
                     splash_logger.warn(global_variables.message_dict["NO_INFO"])
                     self.startup_cancelled = True
+            else:
+                self.startup_cancelled = True

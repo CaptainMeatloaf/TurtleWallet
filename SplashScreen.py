@@ -332,7 +332,12 @@ class SplashScreen(object):
         #Check for config file
         if os.path.exists(global_variables.wallet_config_file):
             with open(global_variables.wallet_config_file) as cFile:
-                global_variables.wallet_config = json.loads(cFile.read())
+                try:
+                    global_variables.wallet_config = json.loads(cFile.read())
+                except ValueError:
+                    splash_logger.error("Failed to decode the JSON file, using defaults")
+                    defaults = {"hasWallet": False, "walletPath": ""}
+                    global_variables.wallet_config = defaults
         else:
             #No config file, create it
             with open(global_variables.wallet_config_file, 'w') as cFile:

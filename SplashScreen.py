@@ -297,6 +297,7 @@ class SplashScreen(object):
         return response
 
     def __init__(self):
+    def __init__(self, wallet_file_path=None):
 
         # Flag used to determine if startup is cancelled
         # to prevent the main thread from running.
@@ -338,7 +339,11 @@ class SplashScreen(object):
                 defaults = {"hasWallet": False, "walletPath": ""}
                 global_variables.wallet_config = defaults
                 cFile.write(json.dumps(defaults))
-                
+
+        if wallet_file_path:
+            global_variables.wallet_config['walletPath'] = wallet_file_path
+            global_variables.wallet_config['hasWallet'] = True
+
         #If this config has seen a wallet before, skip creation dialog
         if "hasWallet" in global_variables.wallet_config and global_variables.wallet_config['hasWallet']:
             #If user has saved path in config for wallet, use it and simply prompt password (They can change wallets at prompt also)
@@ -365,9 +370,9 @@ class SplashScreen(object):
                     self.startup_cancelled = True
             else:
                 #If we are here, it means the user has a wallet, but none are default, prompt for wallet.
-                wallet_file = self.prompt_wallet_dialog()
-                if wallet_file:
-                    splash_logger.info("Using wallet: " + wallet_file) 
+                global_variables.wallet_config['walletPath'] = self.prompt_wallet_dialog()
+                if global_variables.wallet_config['walletPath']:
+                    splash_logger.info("Using wallet: " + global_variables.wallet_config['walletPath'])
                     wallet_password = self.prompt_wallet_password()
                     if wallet_password[0] is None:
                         splash_logger.info("Invalid password")
@@ -384,7 +389,7 @@ class SplashScreen(object):
                         self.window.show()
 
                         # Start the wallet initialisation on a new thread
-                        thread = threading.Thread(target=self.initialise, args=(wallet_file, wallet_password[1]))
+                        thread = threading.Thread(target=self.initialise, args=(global_variables.wallet_config['walletPath'], wallet_password[1]))
                         thread.start()
                     else:
                         self.startup_cancelled = True
@@ -412,9 +417,9 @@ class SplashScreen(object):
                     thread.start()
             else:
                 #select wallet
-                wallet_file = self.prompt_wallet_dialog()
-                if wallet_file:
-                    splash_logger.info("Using wallet: " + wallet_file) 
+                global_variables.wallet_config['walletPath'] = self.prompt_wallet_dialog()
+                if global_variables.wallet_config['walletPath']:
+                    splash_logger.info("Using wallet: " + global_variables.wallet_config['walletPath'])
                     wallet_password = self.prompt_wallet_password()
                     if wallet_password[0] is None:
                         splash_logger.info("Invalid password")
@@ -431,7 +436,7 @@ class SplashScreen(object):
                         self.window.show()
 
                         # Start the wallet initialisation on a new thread
-                        thread = threading.Thread(target=self.initialise, args=(wallet_file, wallet_password[1]))
+                        thread = threading.Thread(target=self.initialise, args=(global_variables.wallet_config['walletPath'], wallet_password[1]))
                         thread.start()
                     else:
                         self.startup_cancelled = True

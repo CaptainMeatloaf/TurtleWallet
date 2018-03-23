@@ -302,7 +302,6 @@ class SplashScreen(object):
         dialog.destroy()
         return response
 
-    def __init__(self):
     def __init__(self, wallet_file_path=None):
 
         # Flag used to determine if startup is cancelled
@@ -406,6 +405,9 @@ class SplashScreen(object):
                         self.startup_cancelled = True
                 else:
                     splash_logger.warn(global_variables.message_dict["NO_INFO"])
+                    global_variables.wallet_config["hasWallet"] = False
+                    with open(global_variables.wallet_config_file, 'w') as cFile:
+                        cFile.write(json.dumps(global_variables.wallet_config))
                     self.startup_cancelled = True
         else:
             #Select or create wallet

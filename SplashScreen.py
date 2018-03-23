@@ -150,13 +150,18 @@ class SplashScreen(object):
         
         #Logo control
         logoimg = Gtk.Image()
-        logoimg.set_from_file ("TurtleLogo.png")
-        
+        logoimg.set_from_file("TurtleLogo.png")
+
+        #Wallet name
+        walletLabel = Gtk.Label()
+        walletLabel.set_markup("Opening <u>{}</u>".format(os.path.splitext(os.path.basename(global_variables.wallet_config['walletPath']))[0]))
+        walletLabel.set_margin_bottom(2)
+
         #password label
         passLabel = Gtk.Label()
         passLabel.set_markup("<b>Please enter the wallet password:</b>")
-        passLabel.set_margin_bottom(5)
-        
+        passLabel.set_margin_bottom(2)
+
         #password entry control
         userEntry = Gtk.Entry()
         userEntry.set_visibility(False)
@@ -168,6 +173,7 @@ class SplashScreen(object):
         # Pack the back right to left, no expanding, no filling, 0 padding
         dialog_box.pack_end(userEntry, False, False, 0)
         dialog_box.pack_end(passLabel, False, False, 0)
+        dialog_box.pack_end(walletLabel, False, False, 0)
         dialog_box.pack_end(logoimg, False, False, 0)
         dialog.set_position(Gtk.WindowPosition.CENTER)
         dialog.show_all()

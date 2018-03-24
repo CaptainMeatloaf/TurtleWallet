@@ -481,20 +481,26 @@ class MainWindow(object):
 
         # Update the status label in the bottom right with block height, peer count, and last refresh time
         if self.status:
-            block_height_string = "<b>Current block height</b> {}".format(self.status['blockCount'])
+            block_count = self.status['blockCount']
+            known_block_count = self.status['knownBlockCount']
+            peer_count = self.status['peerCount']
+            days_behind = ((known_block_count - block_count) * 30) / (60 * 60 * 24)
+            percent_synced = int((float(block_count) / float(known_block_count)) * 100)
+
+            block_height_string = "<b>Current block height</b> {}".format(block_count)
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
-            if self.status['blockCount']+1 < self.status['knownBlockCount']:
-                block_height_string = "<b>Synchronizing with network...</b> [{} / {}]".format(self.status['blockCount'], self.status['knownBlockCount'])
-            status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
+            if block_count+1 < known_block_count:
+                block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
+            status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
             # Logging here for debug purposes. Sloppy Joe..
             main_logger.debug("REFRESH STATS:" + "\r\n" +
                               "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
                               "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
-                              "Address: " + str(self.addresses[0])  + "\r\n" +
-                               "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+                              "Address: " + str(self.addresses[0]) + "\r\n" +
+                              "Status: " + "{0} | Peer count {1} | Last updated {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
         # Return True so GLib continues to call this method
         return True

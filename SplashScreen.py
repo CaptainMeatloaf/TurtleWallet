@@ -370,6 +370,7 @@ class SplashScreen(object):
                     #chose to use different wallet, cache old wallet just in case, rewrite config, and reset
                     global_variables.wallet_config['cachedWalletPath'] = global_variables.wallet_config['walletPath']
                     global_variables.wallet_config['walletPath'] = ""
+                    global_variables.wallet_config['hasWallet'] = False
                     with open(global_variables.wallet_config_file, 'w') as cFile:
                         cFile.write(json.dumps(global_variables.wallet_config))
                     self.__init__()

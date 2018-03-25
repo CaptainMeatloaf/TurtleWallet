@@ -108,15 +108,26 @@ class SplashScreen(object):
         time.sleep(1)
         # Open the main window using glib
         GLib.idle_add(self.open_main_window)
-        
-        
-    def create_wallet(self, name, password):
+
+    def create_wallet(self, name, password, view_key=None, spend_key=None):
         """
-        This function is responsible for creating a new wallet from the daemon.
-        The user gives the name and password on a prompt, which is passed here.
+        This function is responsible for creating a wallet from the daemon.
+        The user gives the name and password (and private keys if importing) on a prompt, which is passed here.
         :return: Process Object Return Code
         """
-        walletd = Popen([get_wallet_daemon_path(), '-w', os.path.join(cur_dir, name + ".wallet"), '-p', password, '-g'])
+        arguments = [
+            get_wallet_daemon_path(),
+            '-w', os.path.join(cur_dir, name + ".wallet"),
+            '-p', password,
+            '-g'
+        ]
+        if view_key:
+            arguments.append('--view-key')
+            arguments.append(view_key)
+        if spend_key:
+            arguments.append('--spend-key')
+            arguments.append(spend_key)
+        walletd = Popen(arguments)
         return walletd.wait()
 
     def prompt_wallet_dialog(self):
@@ -269,10 +280,93 @@ class SplashScreen(object):
             else:
                 #return Tuple of information
                 return (nameText,passText)
-                
+
         else:
             return None
-            
+
+    def prompt_wallet_import(self):
+        """
+        Prompt the user to import a wallet, if they selected to import a wallet.
+        User enters a name, password, and keys for the wallet.
+        The password is checked twice and compared to ensure its correct.
+        :return: Returns a Tuple of Wallet Name, Password, View Key, Spend Key on success, string error on fail, or None on Cancel
+        """
+        dialog = Gtk.MessageDialog(self.window,
+                                   Gtk.DialogFlags.MODAL | Gtk.DialogFlags.DESTROY_WITH_PARENT,
+                                   Gtk.MessageType.QUESTION,
+                                   Gtk.ButtonsType.OK_CANCEL,
+                                   "Wallet Name:")
+
+        dialog.set_title("Please import your wallet")
+
+        # Setup UI for entry box in the dialog
+        dialog_box = dialog.get_content_area()
+
+        namelEntry = Gtk.Entry()
+        namelEntry.set_visibility(True)
+        namelEntry.set_size_request(250, 0)
+
+        passLabel = Gtk.Label("Wallet Password:")
+
+        passEntry = Gtk.Entry()
+        passEntry.set_visibility(False)
+        passEntry.set_invisible_char("*")
+        passEntry.set_size_request(250, 0)
+
+        passLabelConfirm = Gtk.Label("Confirm Password:")
+
+        passEntryConfirm = Gtk.Entry()
+        passEntryConfirm.set_visibility(False)
+        passEntryConfirm.set_invisible_char("*")
+        passEntryConfirm.set_size_request(250, 0)
+
+        viewKeyLabel = Gtk.Label("View Key:")
+        viewKeyEntry = Gtk.Entry()
+        viewKeyEntry.set_visibility(True)
+        viewKeyEntry.set_size_request(500, 0)
+
+        spendKeyLabel = Gtk.Label("Spend Key:")
+        spendKeyEntry = Gtk.Entry()
+        spendKeyEntry.set_visibility(True)
+        spendKeyEntry.set_size_request(500, 0)
+
+        # Trigger the dialog's response when a user hits ENTER on the text box.
+        # The lamba here is a wrapper to get around the default arguments
+        passEntryConfirm.connect("activate", lambda w: dialog.response(Gtk.ResponseType.OK))
+
+        # Pack the back right to left, no expanding, no filling, 0 padding
+        dialog_box.pack_end(spendKeyEntry, False, False, 0)
+        dialog_box.pack_end(spendKeyLabel, False, False, 0)
+        dialog_box.pack_end(viewKeyEntry, False, False, 0)
+        dialog_box.pack_end(viewKeyLabel, False, False, 0)
+        dialog_box.pack_end(passEntryConfirm, False, False, 0)
+        dialog_box.pack_end(passLabelConfirm, False, False, 0)
+        dialog_box.pack_end(passEntry, False, False, 0)
+        dialog_box.pack_end(passLabel, False, False, 0)
+        dialog_box.pack_end(namelEntry, False, False, 0)
+
+        dialog.show_all()
+        # Runs dialog and waits for the response
+        response = dialog.run()
+        nameText = namelEntry.get_text()
+        passText = passEntry.get_text()
+        passConfirmText = passEntryConfirm.get_text()
+        viewKeyText = viewKeyEntry.get_text()
+        spendKeyText = spendKeyEntry.get_text()
+        dialog.destroy()
+        if response == Gtk.ResponseType.OK:
+            if nameText == "":
+                return "Invalid name for wallet"
+            elif passText != passConfirmText:
+                return "Given passwords do not match"
+            elif viewKeyText == "" or spendKeyText == "":
+                return "Both view and spend keys must be specified"
+            else:
+                #return Tuple of information
+                return (nameText,passText,viewKeyText,spendKeyText)
+        else:
+            return None
+
     def prompt_wallet_selection(self):
         """
         Prompt normally shown the first time wallet is ran.
@@ -285,12 +379,13 @@ class SplashScreen(object):
         logoimg = Gtk.Image()
         logoimg.set_from_file ("TurtleLogo.png")
         selectLabel = Gtk.Label()
-        selectLabel.set_markup("<b>Create or select a Turtle Wallet:</b>")
+        selectLabel.set_markup("<b>Select your Turtle Wallet:</b>")
         selectLabel.set_margin_bottom(5)
         dialog_box.pack_end(selectLabel, False, False, 0)
         dialog_box.pack_end(logoimg, False, False, 0)
-        create_button = dialog.add_button("Create Wallet", 8)
-        select_button = dialog.add_button("Select Existing Wallet", 9)
+        create_button = dialog.add_button("Create New", 8)
+        select_button = dialog.add_button("Open Existing", 9)
+        import_button = dialog.add_button("Import Keys", 10)
         dialog.set_position(Gtk.WindowPosition.CENTER)
         dialog.show_all()
         create_button.grab_default()
@@ -414,7 +509,7 @@ class SplashScreen(object):
                     # Start the wallet initialisation on a new thread
                     thread = threading.Thread(target=self.initialise, args=(os.path.join(cur_dir,createReturn[0] + ".wallet"), createReturn[1]))
                     thread.start()
-            else:
+            elif response == 9:
                 #select wallet
                 wallet_file = self.prompt_wallet_dialog()
                 if wallet_file:
@@ -442,3 +537,21 @@ class SplashScreen(object):
                 else:
                     splash_logger.warn(global_variables.message_dict["NO_INFO"])
                     self.startup_cancelled = True
+            elif response == 10:
+                # import wallet
+                importReturn = self.prompt_wallet_import()
+                if importReturn is None:
+                    splash_logger.warn(global_variables.message_dict["NO_INFO"])
+                    self.startup_cancelled = True
+                elif isinstance(importReturn, basestring):
+                    #error on import, display prompt and restart
+                    err_dialog = self.SplashScreen_generic_dialog(importReturn,"Error on wallet import")
+                    self.__init__()
+                elif isinstance(importReturn, tuple):
+                    self.create_wallet(importReturn[0],importReturn[1],importReturn[2],importReturn[3])
+                    self.window.show()
+                    # Start the wallet initialisation on a new thread
+                    thread = threading.Thread(target=self.initialise, args=(os.path.join(cur_dir,importReturn[0] + ".wallet"), importReturn[1]))
+                    thread.start()
+            else:
+                self.startup_cancelled = True

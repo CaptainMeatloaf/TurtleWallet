@@ -497,11 +497,13 @@ class MainWindow(object):
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
             # Logging here for debug purposes. Sloppy Joe..
-            main_logger.debug("REFRESH STATS:" + "\r\n" +
-                              "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
-                              "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
-                              "Address: " + str(self.addresses[0]) + "\r\n" +
-                              "Status: " + "{0} | Peer count {1} | Last updated {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+            main_logger.debug(
+                "REFRESH STATS:" + "\r\n" +
+                "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
+                "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
+                "Address: " + str(self.addresses[0]) + "\r\n" +
+                "Status: {0} | Transactions {1} | Peer count {2} | Last updated {3}".format(
+                    block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
         # Return True so GLib continues to call this method
         return True

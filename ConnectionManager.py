@@ -99,12 +99,15 @@ class WalletConnection(object):
 
         # Check if an existing daemon is running
         if existing_daemon:
-            print(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
-            WC_logger.warning(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
-
-            # Terminate the daemon because the rpc password will be different, so need a new instance
-            existing_daemon.terminate()
-            existing_daemon.wait()
+            # Unable to connect to the existing daemon because the rpc password will be different.
+            # Don't terminate it because there may be other apps running using it.
+            # If we were to launch another daemon using a different port, would still need to consider using a different p2p network port
+            # and a different payment service port as well.
+            # In addition, would also need to consider database conflicts and would have to chose a different data directory,
+            # which not sure we would want to store another database.
+            # So in the end, just exit.
+            WC_logger.error(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
+            raise ValueError(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
 
         # Start the daemon
         walletd = Popen(walletd_args)

@@ -115,19 +115,17 @@ class SplashScreen(object):
         The user gives the name and password (and private keys if importing) on a prompt, which is passed here.
         :return: Process Object Return Code
         """
-        arguments = [
+        walletd_args = [
             get_wallet_daemon_path(),
             '-w', os.path.join(cur_dir, name + ".wallet"),
             '-p', password,
             '-g'
         ]
         if view_key:
-            arguments.append('--view-key')
-            arguments.append(view_key)
+            walletd_args.extend(['--view-key', view_key])
         if spend_key:
-            arguments.append('--spend-key')
-            arguments.append(spend_key)
-        walletd = Popen(arguments)
+            walletd_args.extend(['--spend-key', spend_key])
+        walletd = Popen(walletd_args)
         return walletd.wait()
 
     def prompt_wallet_dialog(self):

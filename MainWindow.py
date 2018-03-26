@@ -479,7 +479,7 @@ class MainWindow(object):
             if transaction[0] not in valid_transactions:
                 self.transactions_list_store.remove(transaction.iter)
 
-        # Update the status label in the bottom right with block height, peer count, and last refresh time
+        # Update the status label in the bottom right with block height, transaction count, peer count, and last refresh time
         if self.status:
             block_count = self.status['blockCount']
             known_block_count = self.status['knownBlockCount']
@@ -492,7 +492,8 @@ class MainWindow(object):
             # Using a remote daemon for example will almost always be behind one block.
             if block_count+1 < known_block_count:
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
-            status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
+            status_label = "{0} | <b>Transactions</b> {1} | <b>Peer count</b> {2} | <b>Last updated</b> {3}".format(
+                block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
             # Logging here for debug purposes. Sloppy Joe..

@@ -174,6 +174,8 @@ class MainWindow(object):
             self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(0))
             self.transactions_list_store.clear()
             self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+            self.builder.get_object("SendTRTLSubBox").hide()
+            self.builder.get_object("SendTRTLMessageLabel").show()
 
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
@@ -506,6 +508,11 @@ class MainWindow(object):
             # Using a remote daemon for example will almost always be behind one block.
             if block_count+1 < known_block_count:
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
+                self.builder.get_object("SendTRTLSubBox").hide()
+                self.builder.get_object("SendTRTLMessageLabel").show()
+            else:
+                self.builder.get_object("SendTRTLSubBox").show()
+                self.builder.get_object("SendTRTLMessageLabel").hide()
             status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 

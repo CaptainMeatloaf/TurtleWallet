@@ -507,10 +507,20 @@ class MainWindow(object):
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
             if block_count+1 < known_block_count:
+                # Block count is catching up to the known block count
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
                 self.builder.get_object("SendTRTLSubBox").hide()
                 self.builder.get_object("SendTRTLMessageLabel").show()
+            elif known_block_count < block_count-1:
+                # Known block count has dropped below the block count
+                # Have encountered the known block count occasionally temporarily drops
+                # If it drops below the block count, we don't want to prematurely enable the Send TRTL tab
+                block_height_string = "<b>Synchronizing...</b>"
+                self.builder.get_object("SendTRTLSubBox").hide()
+                self.builder.get_object("SendTRTLMessageLabel").show()
+                main_logger.warning("Known block count {} has dropped below the block count {}".format(known_block_count, block_count))
             else:
+                # Block count has caught up with the known block count
                 self.builder.get_object("SendTRTLSubBox").show()
                 self.builder.get_object("SendTRTLMessageLabel").hide()
             status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))

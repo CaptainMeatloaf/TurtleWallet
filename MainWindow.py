@@ -369,6 +369,20 @@ class MainWindow(object):
                 # Request the current status from the wallet
                 self.status = global_variables.wallet_connection.request("getStatus")
 
+                # Keep track of the known block count and log a warning if it has gone down (it occasionally temporarily drops, not sure why?)
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                known_block_count = self.status['knownBlockCount']
+                if known_block_count+1 < self.previous_known_block_count:
+                    main_logger.warning(
+                        "Known block height {} has dropped from its previous value {}".format(known_block_count, self.previous_known_block_count))
+                self.previous_known_block_count = known_block_count
+
+                # Check if the block count is above the known block count and log a warning if so
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                block_count = self.status['blockCount']
+                if block_count-1 > known_block_count:
+                    main_logger.warning("Current block height {} is above the known block height {}".format(block_count, known_block_count))
+
                 # Request all transactions related to our addresses from the wallet
                 # This returns a list of blocks with only our transactions populated in them
                 self.blocks = global_variables.wallet_connection.request(
@@ -506,21 +520,20 @@ class MainWindow(object):
             block_height_string = "<b>Current block height</b> {}".format(block_count)
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
-            if block_count+1 < known_block_count:
-                # Block count is catching up to the known block count
+            if known_block_count+1 < self.previous_known_block_count:
+                # The known block count occasionally temporarily drops
+                # If it has dropped, we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            elif block_count+1 < known_block_count:
+                # Wallet is synchronizing (block count is catching up to the known block count)
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
                 self.builder.get_object("SendTRTLSubBox").hide()
                 self.builder.get_object("SendTRTLMessageLabel").show()
-            elif known_block_count < block_count-1:
-                # Known block count has dropped below the block count
-                # Have encountered the known block count occasionally temporarily drops
-                # If it drops below the block count, we don't want to prematurely enable the Send TRTL tab
+            elif block_count-1 > known_block_count:
+                # If the block count is above the known block count we don't want to show wrong counts in the status bar
                 block_height_string = "<b>Synchronizing...</b>"
-                self.builder.get_object("SendTRTLSubBox").hide()
-                self.builder.get_object("SendTRTLMessageLabel").show()
-                main_logger.warning("Known block count {} has dropped below the block count {}".format(known_block_count, block_count))
             else:
-                # Block count has caught up with the known block count
+                # Wallet is synchronized (block count has caught up with the known block count)
                 self.builder.get_object("SendTRTLSubBox").show()
                 self.builder.get_object("SendTRTLMessageLabel").hide()
             status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
@@ -552,6 +565,9 @@ class MainWindow(object):
         self.addresses = []
         self.status = []
         self.blocks = []
+
+        # Keep track of the known block count in order to detect if it goes down (it occasionally temporarily drops)
+        self.previous_known_block_count = 0
 
         # Get the transaction treeview's backing list store
         self.transactions_list_store = self.builder.get_object("HomeTransactionsListStore")

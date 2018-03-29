@@ -38,7 +38,7 @@ class UILogHandler(logging.Handler):
         #message to our log textview, however the UI only
         #logs relevant things like TX sends, receives, and errors.
         end_iter = self.textbuffer.get_end_iter() #Gets the position of the end of the string in the logBuffer
-        self.textbuffer.insert(end_iter, "\n" + rec.msg) #Appends new message to the end of buffer, which reflects in LogTextView
+        self.textbuffer.insert(end_iter, self.format(rec) + "\n") #Appends new message to the end of buffer, which reflects in LogTextView
 
 class MainWindow(object):
     """
@@ -588,6 +588,7 @@ class MainWindow(object):
         # information as the log file, with less verbose (INFO).
         uiHandler = UILogHandler(self.builder.get_object("LogBuffer"))
         uiHandler.setLevel(logging.INFO)
+        uiHandler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s'))
         main_logger.addHandler(uiHandler)
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
 

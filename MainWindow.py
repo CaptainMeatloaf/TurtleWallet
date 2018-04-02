@@ -16,6 +16,7 @@ from __init__ import __version__
 import global_variables
 import logging
 import json
+from string import Template
 
 from HelperFunctions import copy_text
 
@@ -100,31 +101,66 @@ class MainWindow(object):
             noteBook.remove_page(noteBook.page_num(RPCBox))
             self.builder.get_object("RPCMenuItem").set_active(False)
 
+    def on_RPCMethodComboBox_changed(self, object):
+        """ Called by GTK when the selected RPC method is changed """
+        # Determine which method has been selected
+        method = self.rpc_method_list_store[self.builder.get_object("RPCMethodComboBox").get_active()][0]
+
+        # Show the description for the selected method
+        self.builder.get_object("RPCMethodDescriptionLabel").set_text(self.RPCCommands[method]['Description'])
+
+        # Get a valid transaction hash (for use within the arguments)
+        transaction_hash = ""
+        if self.blocks:
+            transaction_hash = self.blocks[-1]['transactions'][-1]['transactionHash']
+
+        # Populate the arguments text field with appropriate data based on the selected method
+        self.builder.get_object("RPCArgumentsTextBuffer").set_text(self.RPCCommands[method]['Arguments'].safe_substitute(dict(
+            address=self.addresses[0] if self.addresses else "",
+            transactionHash=transaction_hash
+        )))
+
     def on_rpcSendButton_clicked(self, object, data=None):
         """ Called by GTK when the RPCSend button has been clicked """
-        method = self.builder.get_object("RPCMethodEntry").get_text()
-        args = self.builder.get_object("RPCArgumentsEntry").get_text()
+        # Determine which method has been selected
+        method = self.rpc_method_list_store[self.builder.get_object("RPCMethodComboBox").get_active()][0]
 
-        #Check the method and arg are somewhat valid
+        # Get the arguments
+        args_text_buffer = self.builder.get_object("RPCArgumentsTextBuffer")
+        start_iter = args_text_buffer.get_start_iter()
+        end_iter = args_text_buffer.get_end_iter()
+        args = args_text_buffer.get_text(start_iter, end_iter, True)
+
+        # Validate the method and arguments are somewhat valid
         if method == "":
             end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + "ERROR: Invalid Method given.")
+            self.RPCbuffer.insert(end_iter, "> \nERROR: Must specify a method" + "\n\n")
             return
-        try:
-            args_dict = json.loads(args)
-        except:
-            end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + 'ERROR: Invalid JSON in arguments given. Ex. \n {"blockCount":1000, "firstBlockIndex":1,"addresses":[ "22p4wUHAMndSscvtYErtqUaYrcUTvrZ9zhWwxc3JtkBHAnw4FJqenZyaePSApKWwJ5BjCJz1fKJoA6QHn5j6bVHg8A8dyhp"]}')
-            return
+        if args == "":
+            # If no arguments specified, assume an empty dictionary
+            args_dict = {}
+        else:
+            try:
+                args_dict = json.loads(args)
+            except ValueError:
+                end_iter = self.RPCbuffer.get_end_iter()
+                self.RPCbuffer.insert(end_iter, "> " + method + "()\nERROR: Arguments are not in valid JSON format\n\n")
+                return
 
-        #Send the request to RPC server and print results on textview
+        # Send the request to RPC server and print results on textview
         try:
-            r = global_variables.wallet_connection.request(method,args_dict)
+            r = global_variables.wallet_connection.request(method, args_dict)
             end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + "SUCCESS:\n" + json.dumps(r))
+            self.RPCbuffer.insert(end_iter, "> " + method + "()\n" + json.dumps(r) + "\n\n")
         except Exception as e:
             end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + "ERROR:\n" + str(e))
+            self.RPCbuffer.insert(end_iter, "> " + method + "()\nERROR: " + str(e) + "\n\n")
+
+    def on_rpcClearButton_clicked(self, object, data=None):
+        """ Called by GTK when the RPCClear button has been clicked """
+        start_iter = self.RPCbuffer.get_start_iter()
+        end_iter = self.RPCbuffer.get_end_iter()
+        self.RPCbuffer.delete(start_iter, end_iter)
 
     def on_RPCTextView_size_allocate(self, *args):
         """The GTK Auto Scrolling method used to scroll RPC view when info is added"""
@@ -559,8 +595,173 @@ class MainWindow(object):
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
 
         #Setup UI RPC variables
+        self.RPCCommands = {
+            'reset': {
+                'Description': "Resets and re-synchronizes your wallet.",
+                'Arguments': Template("")},
+            'save': {
+                'Description': "Saves your wallet to file.",
+                'Arguments': Template("")},
+            'getViewKey': {
+                'Description': "Returns your private view key.",
+                'Arguments': Template("")},
+            'getSpendKeys': {
+                'Description': "Returns your private and public spend keys for a given address.",
+                'Arguments': Template('{"address":"$address"}')},
+            'getStatus': {
+                'Description': "Returns information about the current wallet state.",
+                'Arguments': Template("")},
+            'getAddresses': {
+                'Description': "Returns all of your wallet's addresses.",
+                'Arguments': Template("")},
+            'createAddress': {
+                'Description': "Creates an address and adds it to your wallet.",
+                'Arguments': Template("")},
+            'deleteAddress': {
+                'Description': "Deletes a specified address from your wallet.",
+                'Arguments': Template('{"address":""}')},
+            'getBalance': {
+                'Description': "Returns the balance of a specified address. If address is not specified, returns a cumulative balance of all wallet's addresses.",
+                'Arguments': Template('{"address":""}')},
+            'getBlockHashes': {
+                'Description': "Returns the hashes of all blocks within a specified range.",
+                'Arguments': Template('{\n"firstBlockIndex":1,\n"blockCount":10\n}')},
+            'getTransactionHashes': {
+                'Description': "Returns the hashes of all blocks and transactions in those blocks within a specified range and optionally only for specified addresses and paymentId.",
+                'Arguments': Template(
+                    '{\n'
+                    '"firstBlockIndex":1,\n'
+                    '"blockCount":10,\n'
+                    '"addresses":[\n'
+                    '    "$address"\n'
+                    '],\n'
+                    '"paymentID":""\n'
+                    '}'
+                )},
+            'getTransactions': {
+                'Description': "Returns information about the transactions within a specified range and optionally only for specified addresses and paymentId.",
+                'Arguments': Template(
+                    '{\n'
+                    '"firstBlockIndex":1,\n'
+                    '"blockCount":10,\n'
+                    '"addresses":[\n'
+                    '    "$address"\n'
+                    '],\n'
+                    '"paymentID":""\n'
+                    '}'
+                )},
+            'getUnconfirmedTransactionHashes': {
+                'Description': "Returns information about the current unconfirmed transaction pool and optionally only for specified addresses.",
+                'Arguments': Template(
+                    '{\n'
+                    '"addresses":[\n'
+                    '    "$address"\n'
+                    ']\n'
+                    '}'
+                )},
+            'getTransaction': {
+                'Description': "Returns information about the specified transaction.",
+                'Arguments': Template('{"transactionHash":"$transactionHash"}')},
+            'sendTransaction': {
+                'Description': "Creates and sends a transaction to one or several addresses.",
+                'Arguments': Template(
+                    '{\n'
+                    '"anonymity":3,\n'
+                    '"fee":10,\n'
+                    '"unlockTime":0,\n'
+                    '"paymentID":"",\n'
+                    '"addresses":[\n'
+                    '   "$address"\n'
+                    '],\n'
+                    '"transfers":[\n'
+                    '   {\n'
+                    '     "amount":1000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":2000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":3000,\n'
+                    '     "address":"$address"\n'
+                    '   }\n'
+                    '],\n'
+                    '"changeAddress":"$address",\n'
+                    '"extra":""\n'
+                    '}'
+                )
+            },
+            'createDelayedTransaction': {
+                'Description': "Creates but does not send a transaction. The transaction is not sent to the network automatically and must be sent using the sendDelayedTransaction method.",
+                'Arguments': Template(
+                    '{\n'
+                    '"anonymity":3,\n'
+                    '"fee":10,\n'
+                    '"unlockTime":0,\n'
+                    '"paymentID":"",\n'
+                    '"addresses":[\n'
+                    '   "$address"\n'
+                    '],\n'
+                    '"transfers":[\n'
+                    '   {\n'
+                    '     "amount":1000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":2000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":3000,\n'
+                    '     "address":"$address"\n'
+                    '   }\n'
+                    '],\n'
+                    '"changeAddress":"$address",\n'
+                    '"extra":""\n'
+                    '}'
+                )
+            },
+            'getDelayedTransactionHashes': {
+                'Description': "Returns hashes of delayed transactions.",
+                'Arguments': Template("")},
+            'deleteDelayedTransaction': {
+                'Description': "Deletes a specified delayed transaction.",
+                'Arguments': Template('{"transactionHash":""}')},
+            'sendDelayedTransaction': {
+                'Description': "Sends a specified delayed transaction.",
+                'Arguments': Template('{"transactionHash":""}')},
+            'sendFusionTransaction': {
+                'Description': "Creates and sends a fusion transaction, by taking funds from selected addresses and transferring them to the destination address.",
+                'Arguments': Template(
+                    '{\n'
+                    '"anonymity": 3,\n'
+                    '"threshold": 1000,\n'
+                    '"addresses": [\n'
+                    '    "$address"\n'
+                    '],\n'
+                    '"destinationAddress": "$address"\n'
+                    '}'
+                )
+            },
+            'estimateFusion': {
+                'Description': "Allows to estimate a number of outputs that can be optimized with fusion transactions.",
+                'Arguments': Template(
+                    '{\n'
+                    '"threshold": 1000,\n'
+                    '"addresses": [\n'
+                    '    "$address"\n'
+                    ']\n'
+                    '}'
+                )
+            }
+        }
         self.RPCbuffer = self.builder.get_object("RPCTextView").get_buffer()
         self.RPCScroller = self.builder.get_object("RPCScrolledWindow")
+        self.rpc_method_list_store = self.builder.get_object("RPCMethodListStore")
+        for method in sorted(self.RPCCommands.keys()):
+            self.rpc_method_list_store.append([method])
+        self.builder.get_object("RPCMethodComboBox").set_active(0)
 
         #Set the default fee amount in the FeeEntry widget
         self.builder.get_object("FeeEntry").set_text(str(float(global_variables.static_fee) / float(100)))

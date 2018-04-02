@@ -61,6 +61,14 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
     </columns>
   </object>
   <object class="GtkTextBuffer" id="LogBuffer"/>
+  <object class="GtkTextBuffer" id="RPCArgumentsTextBuffer"/>
+  <object class="GtkListStore" id="RPCMethodListStore">
+    <columns>
+      <!-- column-name Method -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkTextBuffer" id="RPCbuffer"/>
   <object class="GtkWindow" id="MainWindow">
     <property name="can_focus">False</property>
     <property name="window_position">center-always</property>
@@ -918,113 +926,220 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
                 <property name="can_focus">False</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkScrolledWindow" id="RPCScrolledWindow">
+                  <object class="GtkPaned" id="RPCPaned">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="shadow_type">in</property>
+                    <property name="position">250</property>
+                    <property name="position_set">True</property>
+                    <property name="wide_handle">True</property>
                     <child>
-                      <object class="GtkTextView" id="RPCTextView">
+                      <object class="GtkBox" id="rpcControlsBox">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="hscroll_policy">natural</property>
-                        <property name="vscroll_policy">natural</property>
-                        <property name="wrap_mode">word-char</property>
-                        <property name="buffer">RPCbuffer</property>
-                        <signal name="size-allocate" handler="on_RPCTextView_size_allocate" swapped="no"/>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkBox" id="RPCMethodBox">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <child>
+                              <object class="GtkLabel" id="RPCMethodLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="margin_left">5</property>
+                                <property name="margin_right">5</property>
+                                <property name="margin_top">5</property>
+                                <property name="margin_bottom">5</property>
+                                <property name="label" translatable="yes">Method: </property>
+                                <attributes>
+                                  <attribute name="weight" value="bold"/>
+                                </attributes>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkComboBox" id="RPCMethodComboBox">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="model">RPCMethodListStore</property>
+                                <property name="active">0</property>
+                                <signal name="changed" handler="on_RPCMethodComboBox_changed" swapped="no"/>
+                                <child>
+                                  <object class="GtkCellRendererText" id="RPCMethodCellRenderer"/>
+                                  <attributes>
+                                    <attribute name="text">0</attribute>
+                                  </attributes>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="RPCMethodDescriptionLabel">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="xpad">5</property>
+                            <property name="ypad">10</property>
+                            <property name="wrap">True</property>
+                            <property name="xalign">0</property>
+                            <attributes>
+                              <attribute name="style" value="italic"/>
+                            </attributes>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="RPCArgBox">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkLabel" id="RPCArgLabel">
+                                <property name="visible">True</property>
+                                <property name="can_focus">False</property>
+                                <property name="margin_left">5</property>
+                                <property name="margin_right">5</property>
+                                <property name="margin_top">5</property>
+                                <property name="margin_bottom">5</property>
+                                <property name="label" translatable="yes">Arguments:</property>
+                                <property name="xalign">0</property>
+                                <attributes>
+                                  <attribute name="weight" value="bold"/>
+                                </attributes>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkScrolledWindow" id="RPCArgumentsScrolledWindow">
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="shadow_type">in</property>
+                                <child>
+                                  <object class="GtkTextView" id="RPCArgumentsTextView">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="buffer">RPCArgumentsTextBuffer</property>
+                                  </object>
+                                </child>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="RPCButtonBox">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <child>
+                              <object class="GtkButton" id="rpcSendButton">
+                                <property name="label" translatable="yes">Send</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="margin_left">5</property>
+                                <property name="margin_right">5</property>
+                                <property name="margin_top">5</property>
+                                <property name="margin_bottom">5</property>
+                                <signal name="clicked" handler="on_rpcSendButton_clicked" swapped="no"/>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="rpcClearButton">
+                                <property name="label" translatable="yes">Clear</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="margin_left">5</property>
+                                <property name="margin_right">5</property>
+                                <property name="margin_top">5</property>
+                                <property name="margin_bottom">5</property>
+                                <signal name="clicked" handler="on_rpcClearButton_clicked" swapped="no"/>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="pack_type">end</property>
+                            <property name="position">3</property>
+                          </packing>
+                        </child>
                       </object>
+                      <packing>
+                        <property name="resize">True</property>
+                        <property name="shrink">False</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkScrolledWindow" id="RPCScrolledWindow">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="shadow_type">in</property>
+                        <child>
+                          <object class="GtkTextView" id="RPCTextView">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="hscroll_policy">natural</property>
+                            <property name="vscroll_policy">natural</property>
+                            <property name="editable">False</property>
+                            <property name="wrap_mode">word</property>
+                            <property name="cursor_visible">False</property>
+                            <property name="buffer">RPCbuffer</property>
+                            <property name="accepts_tab">False</property>
+                            <signal name="size-allocate" handler="on_RPCTextView_size_allocate" swapped="no"/>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="resize">True</property>
+                        <property name="shrink">False</property>
+                      </packing>
                     </child>
                   </object>
                   <packing>
                     <property name="expand">True</property>
                     <property name="fill">True</property>
                     <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkBox" id="rpcControlsBox">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkLabel" id="RPCMethodLabel">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="margin_left">5</property>
-                        <property name="margin_right">5</property>
-                        <property name="margin_top">5</property>
-                        <property name="margin_bottom">5</property>
-                        <property name="label" translatable="yes">Method: </property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkEntry" id="RPCMethodEntry">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">●</property>
-                        <property name="width_chars">10</property>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkLabel" id="RPCArgLabel">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="margin_left">5</property>
-                        <property name="margin_right">5</property>
-                        <property name="margin_top">5</property>
-                        <property name="margin_bottom">5</property>
-                        <property name="label" translatable="yes">Arguments:</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">2</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkButton" id="rpcSendButton">
-                        <property name="label" translatable="yes">Send</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <property name="margin_left">5</property>
-                        <property name="margin_right">5</property>
-                        <property name="margin_top">5</property>
-                        <property name="margin_bottom">5</property>
-                        <signal name="clicked" handler="on_rpcSendButton_clicked" swapped="no"/>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="pack_type">end</property>
-                        <property name="position">3</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkEntry" id="RPCArgumentsEntry">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">●</property>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">4</property>
-                      </packing>
-                    </child>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
                   </packing>
                 </child>
               </object>
@@ -1076,29 +1191,6 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
         </child>
       </object>
     </child>
-  </object>
-  <object class="GtkTextBuffer" id="RPCbuffer">
-    <property name="text" translatable="yes">reset	-	reset() method allows you to re-sync your wallet.
-save	-	save() method allows you to save your wallet by request.
-getViewKey	-	getViewKey() method returns address view key.
-getSpendKeys	-	getSpendKeys() method returns address spend keys.
-getStatus	-	getStatus() method returns information about the current RPC Wallet state: block_count, known_block_count, last_block_hash and peer_count.
-getAddresses	-	getAddresses() method returns an array of your RPC Wallet's addresses.
-createAddress	-	createAddress() method creates an address.
-deleteAddress	-	deleteAddress() method deletes a specified address.
-getBalance	-	getBalance() method returns a balance for a specified address. If address is not specified, returns a cumulative balance of all RPC Wallet's addresses.
-getBlockHashes	-	getBlockHashes() method returns an array of block hashes for a specified block range.
-getTransactionHashes	-	getTransactionHashes() method returns an array of block and transaction hashes.
-getTransactions	-	getTransactions() method returns information about the transactions in specified block range or for specified addresses.
-getUnconfirmedTransactionHashes	-	getUnconfirmedTransactionHashes() method returns information about the current unconfirmed transaction pool or for a specified addresses.
-getTransaction	-	getTransaction() method returns information about the specified transaction.
-sendTransaction	-	sendTransaction() method creates and sends a transaction.
-createDelayedTransaction	-	createDelayedTransaction() method creates but not sends a transaction.
-getDelayedTransactionHashes	-	getDelayedTransactionHashes() method returns hashes of delayed transactions.
-deleteDelayedTransaction	-	deleteDelayedTransaction() method deletes a specified delayed transaction.
-sendDelayedTransaction	-	sendDelayedTransaction() method sends a specified delayed transaction.
-sendFusionTransaction	-	sendFusionTransaction() method creates and sends a fusion transaction.
-estimateFusion	-	estimateFusion() method allows to estimate a number of outputs that can be optimized with fusion transactions.</property>
   </object>
   <object class="GtkImage" id="LogsMenuActivateImage">
     <property name="visible">True</property>

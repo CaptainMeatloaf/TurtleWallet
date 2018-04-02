@@ -72,8 +72,8 @@ See the &lt;a href="http://www.gnu.org/licenses/lgpl-3.0.html"&gt;GNU Lesser Gen
   <object class="GtkWindow" id="MainWindow">
     <property name="can_focus">False</property>
     <property name="window_position">center-always</property>
-    <property name="default_width">700</property>
-    <property name="default_height">400</property>
+    <property name="default_width">900</property>
+    <property name="default_height">500</property>
     <property name="gravity">center</property>
     <signal name="destroy" handler="on_MainWindow_destroy" swapped="no"/>
     <child>

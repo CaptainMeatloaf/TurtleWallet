@@ -34,11 +34,15 @@ class UILogHandler(logging.Handler):
         self.textbuffer = textbuffer
 
     def handle(self, rec):
-        #everytime logging occurs this handle will add the
-        #message to our log textview, however the UI only
-        #logs relevant things like TX sends, receives, and errors.
-        end_iter = self.textbuffer.get_end_iter() #Gets the position of the end of the string in the logBuffer
-        self.textbuffer.insert(end_iter, self.format(rec) + "\n") #Appends new message to the end of buffer, which reflects in LogTextView
+        # Every time logging occurs, this will add a function to be called on the default main loop
+        # (whenever there are no higher priority events pending)
+        # that appends the message to the end of the text buffer, which reflects in the text view.
+        GLib.idle_add(self.update_text_buffer, self.format(rec) + "\n")
+
+    def update_text_buffer(self, text):
+        # Append the message to the end of the text buffer, which reflects in the text view
+        end_iter = self.textbuffer.get_end_iter()  # Gets the position of the end of the string in the logBuffer
+        self.textbuffer.insert(end_iter, text)  # Appends new message to the end of buffer, which reflects in LogTextView
 
 class MainWindow(object):
     """

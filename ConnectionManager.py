@@ -133,7 +133,11 @@ class WalletConnection(object):
         :return:
         """
         if self.walletd and self.check_daemon_running():
-            r = self.request("save")
+            try:
+                self.request("save")
+            except ConnectionError:
+                # The RPC server may not be running and raise a ConnectionError
+                pass
             self.walletd.terminate()
             self.walletd.wait()
 

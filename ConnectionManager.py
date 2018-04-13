@@ -8,6 +8,7 @@ connections, currently just to Walletd.
 import json
 import psutil
 import requests
+from requests.exceptions import ConnectionError
 from HelperFunctions import get_wallet_daemon_path, get_rpc_password
 import time
 import os

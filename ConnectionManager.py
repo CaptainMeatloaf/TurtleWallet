@@ -97,6 +97,8 @@ class WalletConnection(object):
                 walletd_args.extend(["--daemon-port", remote_daemon_port])
         else:
             walletd_args.append("--local")
+        if global_variables.verbose:
+            walletd_args.extend(['--log-file', os.path.join(os.path.dirname(get_wallet_daemon_path()), 'walletd.log')])
 
         # Check if an existing daemon is running
         if existing_daemon:

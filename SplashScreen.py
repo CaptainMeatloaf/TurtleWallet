@@ -60,6 +60,21 @@ class SplashScreen(object):
         fail_count = 0
         try:
             global_variables.wallet_connection = WalletConnection(wallet_file, wallet_password)
+
+            # The RPC server may not be running at this point yet.
+            # The daemon may be busy updating the database (importing blocks from blockchain storage).
+            # Need to wait until the RPC server is running before continuing.
+            GLib.idle_add(self.update_status, "Waiting for RPC server...")
+            splash_logger.info("Waiting for RPC server...")
+
+            # Continuously send a request to the RPC server until we get a response.
+            while global_variables.wallet_connection.walletd.poll() is None:
+                try:
+                    global_variables.wallet_connection.request('getStatus')
+                    break
+                except ConnectionError:
+                    time.sleep(1)
+
             block_count = 0
             known_block_count = 0
             # Loop until the block count is greater than or equal to the known block count.

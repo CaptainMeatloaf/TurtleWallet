@@ -31,7 +31,6 @@ args = parser.parse_args()
 
 #check if verbosity arg is set
 verbose = args.verbose
-global_variables.verbose = verbose
 if verbose:
     logger.setLevel(logging.DEBUG)
     fh.setLevel(logging.DEBUG)

@@ -10,7 +10,6 @@ wallet_connection = None
 wallet_config_file = 'trtlconfig.json'
 wallet_config = {}
 static_fee = 10 #ATOMIC UNITS
-verbose = False
 message_dict = {
                     "NO_RPC": "No RPC connection has been established!",
                     "NO_DAEMON_FILE" : "Cannot find wallet daemon at location: {}",

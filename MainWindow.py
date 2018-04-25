@@ -415,6 +415,7 @@ class MainWindow(object):
                                    title)
 
         dialog.set_title(message)
+        dialog.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
         dialog.show_all()
         response = dialog.run()
         dialog.destroy()
@@ -573,18 +574,25 @@ class MainWindow(object):
 
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
-            tmpconfig = json.loads(configFile.read())
-        if global_variables.wallet_connection.wallet_file != tmpconfig['walletPath']:
+            try:
+                tmpconfig = json.loads(configFile.read())
+                wallet_path = tmpconfig['walletPath']
+            except ValueError:
+                wallet_path = None
+        if global_variables.wallet_connection.wallet_file != wallet_path:
             if self.MainWindow_generic_dialog("Would you like to default to this wallet on start of Turtle Wallet?", "Default Wallet"):
                 global_variables.wallet_config["walletPath"] = global_variables.wallet_connection.wallet_file
-        #cache that user has indeed been inside a wallet before
-        global_variables.wallet_config["hasWallet"]  = True
+                # cache that user has indeed been inside a wallet before
+                global_variables.wallet_config["hasWallet"] = True
+            else:
+                global_variables.wallet_config["walletPath"] = ""
+
         #save config file
         try:
             with open(global_variables.wallet_config_file,'w') as cFile:
                 cFile.write(json.dumps(global_variables.wallet_config))
         except Exception as e:
-            splash_logger.warn("Could not save config file: {}".format(e))
+            main_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
         self._stop_update_thread = threading.Event()

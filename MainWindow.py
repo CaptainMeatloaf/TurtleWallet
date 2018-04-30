@@ -18,6 +18,8 @@ import logging
 import json
 from enum import IntEnum
 
+from HelperFunctions import copy_text
+
 # Get Logger made in start.py
 main_logger = logging.getLogger('trtl_log.main')
 
@@ -69,7 +71,7 @@ class MainWindow(object):
     def on_CopyButton_clicked(self, object, data=None):
         """Called by GTK when the copy button is clicked"""
         self.builder.get_object("AddressTextBox")
-        Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(self.builder.get_object("AddressTextBox").get_text(), -1)
+        copy_text(self.builder.get_object("AddressTextBox").get_text())
 
     def on_FeeSuggestionCheck_clicked(self, object, data=None):
         """Called by GTK when the FeeSuggestionCheck Checkbox is Toggled"""
@@ -176,17 +178,75 @@ class MainWindow(object):
         :param data: unused
         :return:
         """
-        r = global_variables.wallet_connection.request("reset")
-        if not r:
+        try:
+            global_variables.wallet_connection.request("reset")
+
+            # Re-initialize wallet data so the UI doesn't refresh with outdated data
+            self.balances = []
+            self.addresses = []
+            self.status = []
+            self.blocks = []
+
+            # Clear/reset UI fields immediately rather than waiting for refresh UI task
+            self.builder.get_object("AvailableBalanceAmountLabel").set_label("{:,.2f}".format(0))
+            self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(0))
+            self.transactions_list_store.clear()
+            self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             main_logger.info(global_variables.message_dict["SUCCESS_WALLET_RESET"])
             dialog.run()
             dialog.destroy()
-        else:
+
+        except ValueError as e:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.CANCEL, "Error resetting")
             dialog.format_secondary_text(global_variables.message_dict["FAILED_WALLET_RESET"])
             main_logger.error(global_variables.message_dict["FAILED_WALLET_RESET"])
+            dialog.run()
+            dialog.destroy()
+
+    def on_ExportKeysMenuItem_activate(self, object, data=None):
+        """
+        Export the wallet's secret keys to a dialog with a button
+        enabling users to copy the keys to the clipboard.
+        :param object:
+        :param data:
+        :return:
+        """
+        try:
+            # Capture the secret view key
+            r = global_variables.wallet_connection.request("getViewKey")
+            view_secret_key = r.get('viewSecretKey', 'N/A')
+
+            # Capture the secret spend key for this specific address
+            r = global_variables.wallet_connection.request("getSpendKeys", params={'address': self.addresses[0]})
+            spend_secret_key = r.get('spendSecretKey', 'N/A')
+
+            # Show a message box containing the secret keys
+            dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,
+                                       Gtk.ButtonsType.OK, "Secret Keys")
+            keys_text = "View secret: {}\nSpend secret: {}".format(view_secret_key, spend_secret_key)
+            keys_text_markup = "<b>View secret:</b> {}\n\n<b>Spend secret:</b> {}".format(view_secret_key, spend_secret_key)
+            dialog.format_secondary_markup(keys_text_markup)
+            copy_image = Gtk.Image()
+            copy_image.set_from_stock(Gtk.STOCK_COPY, Gtk.IconSize.BUTTON)
+            copy_button = Gtk.Button(halign=Gtk.Align.CENTER)
+            copy_button.set_image(copy_image)
+            copy_button.set_always_show_image(True)
+            copy_button.set_tooltip_text("Copy")
+            copy_button.connect_object("clicked", copy_text, keys_text)
+            dialog.get_message_area().add(copy_button)
+            dialog.show_all()
+            dialog.run()
+            dialog.destroy()
+
+        except ValueError:
+            # The request will throw a value error if the RPC server sends us an error response
+            dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR,
+                                       Gtk.ButtonsType.CANCEL, "Error exporting keys")
+            dialog.format_secondary_text(
+                "Failed to retrieve keys from the wallet!")
             dialog.run()
             dialog.destroy()
 
@@ -199,19 +259,20 @@ class MainWindow(object):
         :param data: unused
         :return:
         """
-        r = global_variables.wallet_connection.request("save")
-        if not r:
+        try:
+            global_variables.wallet_connection.request("save")
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,Gtk.ButtonsType.OK, "Wallet Saved")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_SAVE"])
             main_logger.info(global_variables.message_dict["SUCCESS_WALLET_SAVE"])
             dialog.run()
             dialog.destroy()
-        else:
+        except ValueError as e:
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR,Gtk.ButtonsType.CANCEL, "Error saving")
             dialog.format_secondary_text(global_variables.message_dict["FAILED_WALLET_SAVE"])
             main_logger.error(global_variables.message_dict["FAILED_WALLET_SAVE"])
             dialog.run()
             dialog.destroy()
+
 
     def on_SendButton_clicked(self, object, data=None):
         """
@@ -425,6 +486,7 @@ class MainWindow(object):
                                    title)
 
         dialog.set_title(message)
+        dialog.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
         dialog.show_all()
         response = dialog.run()
         dialog.destroy()
@@ -486,22 +548,31 @@ class MainWindow(object):
             if transaction[0] not in valid_transactions:
                 self.transactions_list_store.remove(transaction.iter)
 
-        # Update the status label in the bottom right with block height, peer count, and last refresh time
+        # Update the status label in the bottom right with block height, transaction count, peer count, and last refresh time
         if self.status:
-            block_height_string = "<b>Current block height</b> {}".format(self.status['blockCount'])
+            block_count = self.status['blockCount']
+            known_block_count = self.status['knownBlockCount']
+            peer_count = self.status['peerCount']
+            days_behind = ((known_block_count - block_count) * 30) / (60 * 60 * 24)
+            percent_synced = int((float(block_count) / float(known_block_count)) * 100)
+
+            block_height_string = "<b>Current block height</b> {}".format(block_count)
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
-            if self.status['blockCount']+1 < self.status['knownBlockCount']:
-                block_height_string = "<b>Synchronizing with network...</b> [{} / {}]".format(self.status['blockCount'], self.status['knownBlockCount'])
-            status_label = "{0} | <b>Peer count</b> {1} | <b>Last Updated</b> {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
+            if block_count+1 < known_block_count:
+                block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
+            status_label = "{0} | <b>Transactions</b> {1} | <b>Peer count</b> {2} | <b>Last updated</b> {3}".format(
+                block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
             # Logging here for debug purposes. Sloppy Joe..
-            main_logger.debug("REFRESH STATS:" + "\r\n" +
-                              "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
-                              "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
-                              "Address: " + str(self.addresses[0])  + "\r\n" +
-                               "Status: " + "{0} | Peer count {1} | Last Updated {2}".format(block_height_string, self.status['peerCount'], datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+            main_logger.debug(
+                "REFRESH STATS:" + "\r\n" +
+                "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
+                "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
+                "Address: " + str(self.addresses[0]) + "\r\n" +
+                "Status: {0} | Transactions {1} | Peer count {2} | Last updated {3}".format(
+                    block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
         # Return True so GLib continues to call this method
         return True
@@ -560,18 +631,25 @@ class MainWindow(object):
 
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
-            tmpconfig = json.loads(configFile.read())
-        if global_variables.wallet_connection.wallet_file != tmpconfig['walletPath']:
+            try:
+                tmpconfig = json.loads(configFile.read())
+                wallet_path = tmpconfig['walletPath']
+            except ValueError:
+                wallet_path = None
+        if global_variables.wallet_connection.wallet_file != wallet_path:
             if self.MainWindow_generic_dialog("Would you like to default to this wallet on start of Turtle Wallet?", "Default Wallet"):
                 global_variables.wallet_config["walletPath"] = global_variables.wallet_connection.wallet_file
-        #cache that user has indeed been inside a wallet before
-        global_variables.wallet_config["hasWallet"]  = True
+                # cache that user has indeed been inside a wallet before
+                global_variables.wallet_config["hasWallet"] = True
+            else:
+                global_variables.wallet_config["walletPath"] = ""
+
         #save config file
         try:
             with open(global_variables.wallet_config_file,'w') as cFile:
                 cFile.write(json.dumps(global_variables.wallet_config))
         except Exception as e:
-            splash_logger.warn("Could not save config file: {}".format(e))
+            main_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
         self._stop_update_thread = threading.Event()

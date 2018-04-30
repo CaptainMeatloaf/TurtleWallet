@@ -60,6 +60,23 @@ class SplashScreen(object):
         fail_count = 0
         try:
             global_variables.wallet_connection = WalletConnection(wallet_file, wallet_password)
+
+            # The RPC server may not be running at this point yet.
+            # The daemon may be busy updating the database (importing blocks from blockchain storage).
+            # Need to wait until the RPC server is running before continuing.
+            GLib.idle_add(self.update_status, "Waiting for RPC server...")
+            splash_logger.info("Waiting for RPC server...")
+
+            # Continuously send a request to the RPC server until we get a response.
+            while global_variables.wallet_connection.walletd.poll() is None:
+                try:
+                    global_variables.wallet_connection.request('getStatus')
+                    break
+                except ConnectionError:
+                    time.sleep(1)
+
+            block_count = 0
+            known_block_count = 0
             # Loop until the block count is greater than or equal to the known block count.
             # This should guarantee us that the daemon is running and synchronized before the main
             # window opens.
@@ -71,10 +88,18 @@ class SplashScreen(object):
                     if not global_variables.wallet_connection.check_daemon_running():
                         splash_logger.error(global_variables.message_dict["EXITED_DAEMON"])
                         raise ValueError(global_variables.message_dict["EXITED_DAEMON"])
+
                     resp = global_variables.wallet_connection.request('getStatus')
+
+                    # The known block count occasionally temporarily drops
+                    # If it drops below the block count, we don't want to prematurely open the wallet
+                    if resp['knownBlockCount'] < known_block_count:
+                        splash_logger.warning("Known block count {} has dropped from its previous value {}".format(resp['knownBlockCount'], known_block_count))
+                        continue
+
                     block_count = resp['blockCount']
                     known_block_count = resp['knownBlockCount']
-                    
+
                     # It's possible the RPC server is running but the daemon hasn't received
                     # the known block count yet. We need to wait on that before comparing block height.
                     if known_block_count == 0:
@@ -160,16 +185,21 @@ class SplashScreen(object):
 
         # Setup UI for entry box in the dialog
         dialog_box = dialog.get_content_area()
-        
+
         #Logo control
         logoimg = Gtk.Image()
-        logoimg.set_from_file ("TurtleLogo.png")
-        
+        logoimg.set_from_file("TurtleLogo.png")
+
+        #Wallet name
+        walletLabel = Gtk.Label()
+        walletLabel.set_markup("Opening <u>{}</u>".format(os.path.splitext(os.path.basename(global_variables.wallet_config['walletPath']))[0]))
+        walletLabel.set_margin_bottom(2)
+
         #password label
         passLabel = Gtk.Label()
         passLabel.set_markup("<b>Please enter the wallet password:</b>")
-        passLabel.set_margin_bottom(5)
-        
+        passLabel.set_margin_bottom(2)
+
         #password entry control
         userEntry = Gtk.Entry()
         userEntry.set_visibility(False)
@@ -181,6 +211,7 @@ class SplashScreen(object):
         # Pack the back right to left, no expanding, no filling, 0 padding
         dialog_box.pack_end(userEntry, False, False, 0)
         dialog_box.pack_end(passLabel, False, False, 0)
+        dialog_box.pack_end(walletLabel, False, False, 0)
         dialog_box.pack_end(logoimg, False, False, 0)
         dialog.set_position(Gtk.WindowPosition.CENTER)
         dialog.show_all()
@@ -216,8 +247,8 @@ class SplashScreen(object):
             return True
         else:
             return False
-        
-            
+
+
     def prompt_wallet_create(self):
         """
         Prompt the user to create a wallet, if they selected to make a wallet.
@@ -235,20 +266,20 @@ class SplashScreen(object):
 
         # Setup UI for entry box in the dialog
         dialog_box = dialog.get_content_area()
-        
+
         namelEntry = Gtk.Entry()
         namelEntry.set_visibility(True)
         namelEntry.set_size_request(250, 0)
-        
+
         passLabel = Gtk.Label("Wallet Password:")
-        
+
         passEntry = Gtk.Entry()
         passEntry.set_visibility(False)
         passEntry.set_invisible_char("*")
         passEntry.set_size_request(250, 0)
-        
+
         passLabelConfirm = Gtk.Label("Confirm Password:")
-        
+
         passEntryConfirm = Gtk.Entry()
         passEntryConfirm.set_visibility(False)
         passEntryConfirm.set_invisible_char("*")
@@ -372,7 +403,7 @@ class SplashScreen(object):
         """
         dialog = Gtk.Dialog()
         dialog.set_title("TurtleWallet v{0}".format(__version__))
-        
+
         dialog_box = dialog.get_content_area()
         logoimg = Gtk.Image()
         logoimg.set_from_file ("TurtleLogo.png")
@@ -393,7 +424,7 @@ class SplashScreen(object):
         dialog.destroy()
         return response
 
-    def __init__(self):
+    def __init__(self, wallet_file_path=None):
 
         # Flag used to determine if startup is cancelled
         # to prevent the main thread from running.
@@ -428,14 +459,23 @@ class SplashScreen(object):
         #Check for config file
         if os.path.exists(global_variables.wallet_config_file):
             with open(global_variables.wallet_config_file) as cFile:
-                global_variables.wallet_config = json.loads(cFile.read())
+                try:
+                    global_variables.wallet_config = json.loads(cFile.read())
+                except ValueError:
+                    splash_logger.error("Failed to decode the JSON file, using defaults")
+                    defaults = {"hasWallet": False, "walletPath": ""}
+                    global_variables.wallet_config = defaults
         else:
             #No config file, create it
             with open(global_variables.wallet_config_file, 'w') as cFile:
                 defaults = {"hasWallet": False, "walletPath": ""}
                 global_variables.wallet_config = defaults
                 cFile.write(json.dumps(defaults))
-                
+
+        if wallet_file_path:
+            global_variables.wallet_config['walletPath'] = wallet_file_path
+            global_variables.wallet_config['hasWallet'] = True
+
         #If this config has seen a wallet before, skip creation dialog
         if "hasWallet" in global_variables.wallet_config and global_variables.wallet_config['hasWallet']:
             #If user has saved path in config for wallet, use it and simply prompt password (They can change wallets at prompt also)
@@ -448,6 +488,7 @@ class SplashScreen(object):
                     #chose to use different wallet, cache old wallet just in case, rewrite config, and reset
                     global_variables.wallet_config['cachedWalletPath'] = global_variables.wallet_config['walletPath']
                     global_variables.wallet_config['walletPath'] = ""
+                    global_variables.wallet_config['hasWallet'] = False
                     with open(global_variables.wallet_config_file, 'w') as cFile:
                         cFile.write(json.dumps(global_variables.wallet_config))
                     self.__init__()
@@ -462,9 +503,9 @@ class SplashScreen(object):
                     self.startup_cancelled = True
             else:
                 #If we are here, it means the user has a wallet, but none are default, prompt for wallet.
-                wallet_file = self.prompt_wallet_dialog()
-                if wallet_file:
-                    splash_logger.info("Using wallet: " + wallet_file) 
+                global_variables.wallet_config['walletPath'] = self.prompt_wallet_dialog()
+                if global_variables.wallet_config['walletPath']:
+                    splash_logger.info("Using wallet: " + global_variables.wallet_config['walletPath'])
                     wallet_password = self.prompt_wallet_password()
                     if wallet_password[0] is None:
                         splash_logger.info("Invalid password")
@@ -481,12 +522,15 @@ class SplashScreen(object):
                         self.window.show()
 
                         # Start the wallet initialisation on a new thread
-                        thread = threading.Thread(target=self.initialise, args=(wallet_file, wallet_password[1]))
+                        thread = threading.Thread(target=self.initialise, args=(global_variables.wallet_config['walletPath'], wallet_password[1]))
                         thread.start()
                     else:
                         self.startup_cancelled = True
                 else:
                     splash_logger.warn(global_variables.message_dict["NO_INFO"])
+                    global_variables.wallet_config["hasWallet"] = False
+                    with open(global_variables.wallet_config_file, 'w') as cFile:
+                        cFile.write(json.dumps(global_variables.wallet_config))
                     self.startup_cancelled = True
         else:
             #Select or create wallet
@@ -509,9 +553,9 @@ class SplashScreen(object):
                     thread.start()
             elif response == 9:
                 #select wallet
-                wallet_file = self.prompt_wallet_dialog()
-                if wallet_file:
-                    splash_logger.info("Using wallet: " + wallet_file) 
+                global_variables.wallet_config['walletPath'] = self.prompt_wallet_dialog()
+                if global_variables.wallet_config['walletPath']:
+                    splash_logger.info("Using wallet: " + global_variables.wallet_config['walletPath'])
                     wallet_password = self.prompt_wallet_password()
                     if wallet_password[0] is None:
                         splash_logger.info("Invalid password")
@@ -528,7 +572,7 @@ class SplashScreen(object):
                         self.window.show()
 
                         # Start the wallet initialisation on a new thread
-                        thread = threading.Thread(target=self.initialise, args=(wallet_file, wallet_password[1]))
+                        thread = threading.Thread(target=self.initialise, args=(global_variables.wallet_config['walletPath'], wallet_password[1]))
                         thread.start()
                     else:
                         self.startup_cancelled = True

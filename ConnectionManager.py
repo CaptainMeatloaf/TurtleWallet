@@ -8,6 +8,7 @@ connections, currently just to Walletd.
 import json
 import psutil
 import requests
+from requests.exceptions import ConnectionError
 from HelperFunctions import get_wallet_daemon_path, get_rpc_password
 import time
 import os
@@ -96,29 +97,27 @@ class WalletConnection(object):
                 walletd_args.extend(["--daemon-port", remote_daemon_port])
         else:
             walletd_args.append("--local")
-        #checks if existing daemon has been found
-        if existing_daemon:
-            print(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
-            WC_logger.info(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
-            #checks if existing daemon is valid (Our daemon and not a different or modified one)
-            if self.check_existing_daemon(existing_daemon,good_daemon) == False:
-                print(global_variables.message_dict["INVALID_DAEMON"])
-                WC_logger.info(global_variables.message_dict["INVALID_DAEMON"])
-                #if a invlaid daemon is found, we terminate it and start a new one
-                existing_daemon.terminate()
-                existing_daemon.wait()
-                walletd = Popen(walletd_args)
-            else:
-                #existing daemon found to be valid, simply return the existing process object
-                return existing_daemon
-        else:
-            #No existing daemon found, start new instance
-            walletd = Popen(walletd_args)
 
-        # Poll the daemon, if poll returns None the daemon is active.
+        # Check if an existing daemon is running
+        if existing_daemon:
+            # Unable to connect to the existing daemon because the rpc password will be different.
+            # Don't terminate it because there may be other apps running using it.
+            # If we were to launch another daemon using a different port, would still need to consider using a different p2p network port
+            # and a different payment service port as well.
+            # In addition, would also need to consider database conflicts and would have to chose a different data directory,
+            # which not sure we would want to store another database.
+            # So in the end, just exit.
+            WC_logger.error(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
+            raise ValueError(global_variables.message_dict["EXISTING_DAEMON"].format(existing_daemon.pid))
+
+        # Start the daemon
+        walletd = Popen(walletd_args)
+
+        # Poll the daemon, if poll returns None the daemon is active
         while walletd.poll():
             time.sleep(1)
-        # So now that the daemon is active, the password maybe invalid or
+
+        # So now that the daemon is active, the password may be invalid or
         # the user is still running Turtled and the daemon might die.
         # This is an attempt to wait for that to process.
         # When the main window appears the request status will naturally fail if the daemon is not running.
@@ -135,7 +134,11 @@ class WalletConnection(object):
         :return:
         """
         if self.walletd and self.check_daemon_running():
-            r = self.request("save")
+            try:
+                self.request("save")
+            except ConnectionError:
+                # The RPC server may not be running and raise a ConnectionError
+                pass
             self.walletd.terminate()
             self.walletd.wait()
 

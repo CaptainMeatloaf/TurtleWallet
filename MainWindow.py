@@ -435,6 +435,7 @@ class MainWindow(object):
                                    title)
 
         dialog.set_title(message)
+        dialog.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
         dialog.show_all()
         response = dialog.run()
         dialog.destroy()
@@ -513,7 +514,7 @@ class MainWindow(object):
             if transaction[0] not in valid_transactions:
                 self.transactions_list_store.remove(transaction.iter)
 
-        # Update the status label in the bottom right with block height, peer count, and last refresh time
+        # Update the status label in the bottom right with block height, transaction count, peer count, and last refresh time
         if self.status:
             block_count = self.status['blockCount']
             known_block_count = self.status['knownBlockCount']
@@ -540,15 +541,18 @@ class MainWindow(object):
                 # Wallet is synchronized (block count has caught up with the known block count)
                 self.builder.get_object("SendTRTLSubBox").show()
                 self.builder.get_object("SendTRTLMessageLabel").hide()
-            status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
+            status_label = "{0} | <b>Transactions</b> {1} | <b>Peer count</b> {2} | <b>Last updated</b> {3}".format(
+                block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
             # Logging here for debug purposes. Sloppy Joe..
-            main_logger.debug("REFRESH STATS:" + "\r\n" +
-                              "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
-                              "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
-                              "Address: " + str(self.addresses[0]) + "\r\n" +
-                              "Status: " + "{0} | Peer count {1} | Last updated {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+            main_logger.debug(
+                "REFRESH STATS:" + "\r\n" +
+                "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
+                "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
+                "Address: " + str(self.addresses[0]) + "\r\n" +
+                "Status: {0} | Transactions {1} | Peer count {2} | Last updated {3}".format(
+                    block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
         # Return True so GLib continues to call this method
         return True
@@ -611,18 +615,25 @@ class MainWindow(object):
 
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
-            tmpconfig = json.loads(configFile.read())
-        if global_variables.wallet_connection.wallet_file != tmpconfig['walletPath']:
+            try:
+                tmpconfig = json.loads(configFile.read())
+                wallet_path = tmpconfig['walletPath']
+            except ValueError:
+                wallet_path = None
+        if global_variables.wallet_connection.wallet_file != wallet_path:
             if self.MainWindow_generic_dialog("Would you like to default to this wallet on start of Turtle Wallet?", "Default Wallet"):
                 global_variables.wallet_config["walletPath"] = global_variables.wallet_connection.wallet_file
-        #cache that user has indeed been inside a wallet before
-        global_variables.wallet_config["hasWallet"]  = True
+                # cache that user has indeed been inside a wallet before
+                global_variables.wallet_config["hasWallet"] = True
+            else:
+                global_variables.wallet_config["walletPath"] = ""
+
         #save config file
         try:
             with open(global_variables.wallet_config_file,'w') as cFile:
                 cFile.write(json.dumps(global_variables.wallet_config))
         except Exception as e:
-            splash_logger.warn("Could not save config file: {}".format(e))
+            main_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
         self._stop_update_thread = threading.Event()

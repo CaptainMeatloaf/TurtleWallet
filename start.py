@@ -27,6 +27,7 @@ fh.setLevel(logging.INFO)
 parser = argparse.ArgumentParser()
 #add verbosity argument
 parser.add_argument('-v', '--verbose', help='Change verbosity to DEBUG', required=False, action='store_true')
+parser.add_argument('-w', '--wallet', help='Wallet file location', required=False, default=None)
 args = parser.parse_args()
 
 #check if verbosity arg is set
@@ -49,7 +50,7 @@ logger.addHandler(fh)
 logger.info("Turtle Wallet Started")
 signal.signal(signal.SIGINT, signal.SIG_DFL) # Required to handle interrupts closing the program
 logger.info("Starting Splash Screen")
-splash_screen = SplashScreen() # Create a new instance of the splash screen
+splash_screen = SplashScreen(args.wallet) # Create a new instance of the splash screen
 
 # Make sure the splash screen wasn't cancelled by the user
 if not splash_screen.startup_cancelled:

@@ -396,8 +396,16 @@ class MainWindow(object):
         self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
         self.builder.get_object("TransactionStateValue").set_text(WalletTransactionState(transaction['state']).name.capitalize())
         self.builder.get_object("TransactionUnlockTimeValue").set_text(str(transaction['unlockTime']))
+        if transaction['unlockTime'] > 0:
+            self.builder.get_object("TransactionUnlockTimeBox").show()
+        else:
+            self.builder.get_object("TransactionUnlockTimeBox").hide()
         self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
         self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<NONE>")
+        if transaction['paymentId']:
+            self.builder.get_object("TransactionPaymentIdBox").show()
+        else:
+            self.builder.get_object("TransactionPaymentIdBox").hide()
         transaction_list_store = self.builder.get_object("TransactionListStore")
         transaction_list_store.clear()
         for transfer in selected_transaction['transfers']:

@@ -386,12 +386,10 @@ class MainWindow(object):
         # Populate the dialog with the transaction details
         self.builder.get_object("TransactionDateValue").set_text(datetime.fromtimestamp(
             selected_transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"))
+        self.builder.get_object("TransactionBlockIndexValue").set_label(str(selected_transaction['blockIndex']))
         self.builder.get_object("TransactionBlockIndexLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_block" % block_hash)
-        self.builder.get_object("TransactionBlockIndexLink").set_label(str(selected_transaction['blockIndex']))
-        self.builder.get_object("TransactionBlockIndexLink").set_tooltip_text("Load Block Explorer")
+        self.builder.get_object("TransactionHashValue").set_label(selected_transaction['transactionHash'])
         self.builder.get_object("TransactionHashLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_transaction" % selected_transaction['transactionHash'])
-        self.builder.get_object("TransactionHashLink").set_label(selected_transaction['transactionHash'])
-        self.builder.get_object("TransactionHashLink").set_tooltip_text("Load Block Explorer")
         self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
         self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
         self.builder.get_object("TransactionStateValue").set_text(WalletTransactionState(transaction['state']).name.capitalize())

@@ -1169,7 +1169,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionDateLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Date:</property>
                     <property name="width_chars">15</property>
@@ -1207,14 +1207,15 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
               <object class="GtkBox" id="TransactionBlockIndexBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="spacing">10</property>
                 <child>
                   <object class="GtkLabel" id="TransactionBlockIndexLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Block Height:</property>
-                    <property name="width_chars">14</property>
+                    <property name="width_chars">15</property>
                     <property name="xalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -1227,18 +1228,31 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLinkButton" id="TransactionBlockIndexLink">
+                  <object class="GtkLabel" id="TransactionBlockIndexValue">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLinkButton" id="TransactionBlockIndexLink">
+                    <property name="label" translatable="yes">Block Explorer</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="receives_default">False</property>
                     <property name="relief">none</property>
                     <property name="focus_on_click">False</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">1</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>
@@ -1252,14 +1266,15 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
               <object class="GtkBox" id="TransactionHashBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="spacing">10</property>
                 <child>
                   <object class="GtkLabel" id="TransactionHashLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Hash:</property>
-                    <property name="width_chars">14</property>
+                    <property name="width_chars">15</property>
                     <property name="xalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
@@ -1272,18 +1287,32 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLinkButton" id="TransactionHashLink">
+                  <object class="GtkLabel" id="TransactionHashValue">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="selectable">True</property>
+                    <property name="xalign">0</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLinkButton" id="TransactionHashLink">
+                    <property name="label" translatable="yes">Block Explorer</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="receives_default">False</property>
                     <property name="relief">none</property>
                     <property name="focus_on_click">False</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">1</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>
@@ -1302,7 +1331,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionAmountLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Amount:</property>
                     <property name="width_chars">15</property>
@@ -1345,7 +1374,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionFeeLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Fee:</property>
                     <property name="width_chars">15</property>
@@ -1388,7 +1417,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionStateLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">State:</property>
                     <property name="width_chars">15</property>
@@ -1430,7 +1459,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionUnlockTimeLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Unlock Height:</property>
                     <property name="width_chars">15</property>
@@ -1474,13 +1503,11 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionExtraLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="valign">start</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Extra Data:</property>
                     <property name="width_chars">15</property>
                     <property name="xalign">0</property>
-                    <property name="yalign">0</property>
                     <attributes>
                       <attribute name="weight" value="bold"/>
                     </attributes>
@@ -1495,9 +1522,9 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionExtraValue">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="hexpand">False</property>
                     <property name="wrap">True</property>
                     <property name="wrap_mode">char</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>
@@ -1521,7 +1548,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionPaymentIdLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xpad">5</property>
+                    <property name="margin_left">5</property>
                     <property name="ypad">4</property>
                     <property name="label" translatable="yes">Payment ID:</property>
                     <property name="width_chars">15</property>
@@ -1540,6 +1567,7 @@ estimateFusion	-	estimateFusion() method allows to estimate a number of outputs 
                   <object class="GtkLabel" id="TransactionPaymentIdValue">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="selectable">True</property>
                     <property name="xalign">0</property>
                   </object>
                   <packing>

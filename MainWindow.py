@@ -376,6 +376,15 @@ class MainWindow(object):
                         "firstBlockIndex": 1,
                         "addresses": self.addresses})['items']
 
+                # Retrieve the current price
+                try:
+                    api_result = requests.get('https://api.coingecko.com/api/v3/coins/turtlecoin')
+                    api_result.raise_for_status()
+                    self.current_price = api_result.json()['market_data']['current_price']
+                except (ValueError, KeyError, HTTPError) as e:
+                    main_logger.error("Failed to retrieve current price: {}".format(e))
+                    self.current_price = []
+
                 self.currentTimeout = 0
                 self.currentTry = 0
 
@@ -495,20 +504,13 @@ class MainWindow(object):
             if transaction[0] not in valid_transactions:
                 self.transactions_list_store.remove(transaction.iter)
 
-        # Update the dollar value
-        try:
-            api_result = requests.get('https://tradesatoshi.com/api/public/getticker?market=TRTL_BTC')
-            api_result.raise_for_status()
-            trtl_price_btc = float(api_result.json()['result']['last'])
-            api_result = requests.get('https://api.coinmarketcap.com/v1/ticker/bitcoin')
-            api_result.raise_for_status()
-            btc_price_usd = float(api_result.json()[0]['price_usd'])
+        # Update the valuation
+        if self.current_price:
             self.builder.get_object("DollarValueAmountLabel").set_text("{:,.2f}".format(
-                trtl_price_btc * btc_price_usd * float(self.balances['availableBalance']/100.)))
+                float(self.current_price['usd']) * float(self.balances['availableBalance']/100.)))
             self.builder.get_object("BTCValueAmountLabel").set_text("{:,.8f}".format(
-                trtl_price_btc * float(self.balances['availableBalance']/100.)))
-        except (ValueError, KeyError, HTTPError) as e:
-            main_logger.error("Failed to retrieve dollar value: {}".format(e))
+                float(self.current_price['btc']) * float(self.balances['availableBalance']/100.)))
+        else:
             self.builder.get_object("DollarValueAmountLabel").set_text("---")
             self.builder.get_object("BTCValueAmountLabel").set_text("---")
 
@@ -557,6 +559,9 @@ class MainWindow(object):
         self.addresses = []
         self.status = []
         self.blocks = []
+
+        # Initialize current price data
+        self.current_price = []
 
         # Get the transaction treeview's backing list store
         self.transactions_list_store = self.builder.get_object("HomeTransactionsListStore")

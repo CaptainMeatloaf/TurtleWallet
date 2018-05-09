@@ -25,8 +25,6 @@ you want installed: look for the GTK and glade options.
 
 ### Running
 
-**Note: opening your wallet with `walletd` renders it no longer readable by `simplewallet`. Please make a backup, as always.**
-
 Getting this wallet running is easy.
 
 * Set TURTLE_HOME to the directory containing walletd __OR__ place a copy of walletd in the current working directory.

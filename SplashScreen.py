@@ -331,6 +331,90 @@ class SplashScreen(object):
         dialog.destroy()
         return response
 
+    def prompt_node(self):
+        """
+        Prompt the user whether they want to connect to a local or remote node.
+        """
+        dialog = Gtk.Dialog()
+        dialog.set_title("Select Node")
+        dialog_content = dialog.get_content_area()
+
+        label = Gtk.Label()
+        label.set_markup("<b>Do you want to run a local node or connect to a remote node?</b>")
+        label.set_padding(5, 5)
+
+        radio_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        radio_button_box.set_margin_top(5)
+        radio_button_box.set_margin_bottom(5)
+        radio_button_box.set_margin_left(5)
+        radio_button_box.set_margin_right(5)
+
+        def on_radio_button_toggled(radio_button, option):
+            if radio_button.get_active():
+                if option == "local":
+                    remote_node_address.set_sensitive(False)
+                elif option == "remote":
+                    remote_node_address.set_sensitive(True)
+
+        local_node_radio_button = Gtk.RadioButton.new_with_label_from_widget(None, "Local Node")
+        local_node_radio_button.connect("toggled", on_radio_button_toggled, "local")
+        radio_button_box.pack_start(local_node_radio_button, False, False, 0)
+
+        remote_node_radio_button = Gtk.RadioButton.new_from_widget(local_node_radio_button)
+        remote_node_radio_button.set_label("Remote Node")
+        remote_node_radio_button.connect("toggled", on_radio_button_toggled, "remote")
+        radio_button_box.pack_start(remote_node_radio_button, False, False, 0)
+
+        remote_node_address = Gtk.Entry()
+        remote_node_address.set_sensitive(False)
+        remote_node_address.set_margin_bottom(5)
+        remote_node_address.set_margin_left(5)
+        remote_node_address.set_margin_right(5)
+        remote_daemon_address = global_variables.wallet_config.get('remoteDaemonAddress', None)
+        remote_daemon_port = global_variables.wallet_config.get('remoteDaemonPort', None)
+        if remote_daemon_address and remote_daemon_port:
+            remote_node_address.set_text("%s:%s" % (remote_daemon_address, remote_daemon_port))
+        else:
+            remote_node_address.set_text("public.turtlenode.io:11898")
+
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        ok_button = dialog.add_button("OK", Gtk.ResponseType.OK)
+        cancel_button = dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        button_box.pack_end(ok_button, False, False, 0)
+        button_box.pack_end(cancel_button, False, False, 0)
+        ok_button.set_margin_top(5)
+        ok_button.set_margin_bottom(5)
+        ok_button.set_margin_left(5)
+        ok_button.set_margin_right(5)
+        cancel_button.set_margin_top(5)
+        cancel_button.set_margin_bottom(5)
+        cancel_button.set_margin_left(5)
+        cancel_button.set_margin_right(5)
+
+        dialog_content.pack_start(label, False, False, 0)
+        dialog_content.pack_end(remote_node_address, False, False, 0)
+        dialog_content.pack_end(radio_button_box, False, False, 0)
+        dialog_content.pack_end(button_box, False, False, 0)
+
+        ok_button.grab_default()
+
+        dialog.set_position(Gtk.WindowPosition.CENTER)
+        dialog.show_all()
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            if remote_node_address.is_sensitive():
+                # TODO: validate the entered address
+                remote_daemon_address, remote_daemon_port = remote_node_address.get_text().split(":")
+                global_variables.wallet_config['remoteDaemon'] = True
+                global_variables.wallet_config['remoteDaemonAddress'] = remote_daemon_address
+                global_variables.wallet_config['remoteDaemonPort'] = remote_daemon_port
+            else:
+                global_variables.wallet_config['remoteDaemon'] = False
+            with open(global_variables.wallet_config_file, 'w') as cFile:
+                cFile.write(json.dumps(global_variables.wallet_config))
+        dialog.destroy()
+        return response
+
     def __init__(self, wallet_file_path=None):
 
         # Flag used to determine if startup is cancelled
@@ -391,7 +475,7 @@ class SplashScreen(object):
                 if wallet_password[0] is None:
                     splash_logger.info("Invalid password")
                     self.startup_cancelled = True
-                elif wallet_password[0] == False:
+                elif not wallet_password[0]:
                     #chose to use different wallet, cache old wallet just in case, rewrite config, and reset
                     global_variables.wallet_config['cachedWalletPath'] = global_variables.wallet_config['walletPath']
                     global_variables.wallet_config['walletPath'] = ""
@@ -399,7 +483,12 @@ class SplashScreen(object):
                     with open(global_variables.wallet_config_file, 'w') as cFile:
                         cFile.write(json.dumps(global_variables.wallet_config))
                     self.__init__()
-                elif wallet_password[0] == True:
+                elif wallet_password[0]:
+                    if "remoteDaemon" not in global_variables.wallet_config:
+                        if self.prompt_node() != Gtk.ResponseType.OK:
+                            self.startup_cancelled = True
+                            return
+
                     # Show the window
                     self.window.show()
 
@@ -417,14 +506,19 @@ class SplashScreen(object):
                     if wallet_password[0] is None:
                         splash_logger.info("Invalid password")
                         self.startup_cancelled = True
-                    elif wallet_password[0] == False:
+                    elif not wallet_password[0]:
                         #chose to use different wallet, cache old wallet just in case, rewrite config, and reset
                         global_variables.wallet_config['cachedWalletPath'] = global_variables.wallet_config['walletPath']
                         global_variables.wallet_config['walletPath'] = ""
                         with open(global_variables.wallet_config_file, 'w') as cFile:
                             cFile.write(json.dumps(global_variables.wallet_config))
                         self.__init__()
-                    elif wallet_password[0] == True:
+                    elif wallet_password[0]:
+                        if "remoteDaemon" not in global_variables.wallet_config:
+                            if self.prompt_node() != Gtk.ResponseType.OK:
+                                self.startup_cancelled = True
+                                return
+
                         # Show the window
                         self.window.show()
 
@@ -454,6 +548,10 @@ class SplashScreen(object):
                     self.__init__()
                 elif isinstance(createReturn, tuple):
                     self.create_wallet(createReturn[0],createReturn[1])
+                    if "remoteDaemon" not in global_variables.wallet_config:
+                        if self.prompt_node() != Gtk.ResponseType.OK:
+                            self.startup_cancelled = True
+                            return
                     self.window.show()
                     # Start the wallet initialisation on a new thread
                     thread = threading.Thread(target=self.initialise, args=(os.path.join(cur_dir,createReturn[0] + ".wallet"), createReturn[1]))
@@ -475,6 +573,11 @@ class SplashScreen(object):
                             cFile.write(json.dumps(global_variables.wallet_config))
                         self.__init__()
                     elif wallet_password[0] == True:
+                        if "remoteDaemon" not in global_variables.wallet_config:
+                            if self.prompt_node() != Gtk.ResponseType.OK:
+                                self.startup_cancelled = True
+                                return
+
                         # Show the window
                         self.window.show()
 

@@ -8,7 +8,7 @@ the same name.
 
 import threading
 import time
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, Gdk, GLib
 from __init__ import __version__
 from ConnectionManager import WalletConnection
 import global_variables
@@ -19,6 +19,7 @@ import logging
 import json
 import os
 from subprocess import Popen
+import re
 
 
 # Maximum attempts to talk to the wallet daemon before giving up
@@ -333,86 +334,109 @@ class SplashScreen(object):
 
     def prompt_node(self):
         """
-        Prompt the user whether they want to connect to a local or remote node.
+        Display a dialog that prompts the user whether they want to connect to a local or remote node.
+        :return: Gtk.ResponseType
         """
         dialog = Gtk.Dialog()
         dialog.set_title("Select Node")
         dialog_content = dialog.get_content_area()
 
+        # Load CSS to allow for styling dialog elements
+        screen = Gdk.Screen.get_default()
+        gtk_provider = Gtk.CssProvider()
+        gtk_context = Gtk.StyleContext()
+        gtk_context.add_provider_for_screen(screen, gtk_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        gtk_provider.load_from_data("""
+        #remote_node_address.red { background-image: linear-gradient(red); }
+        """)
+
+        ok_button = dialog.add_button("OK", Gtk.ResponseType.OK)
+        ok_button.grab_default()
+        cancel_button = dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        button_box.pack_end(ok_button, False, False, 5)
+        button_box.pack_end(cancel_button, False, False, 5)
+
         label = Gtk.Label()
         label.set_markup("<b>Do you want to run a local node or connect to a remote node?</b>")
         label.set_padding(5, 5)
 
-        radio_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        radio_button_box.set_margin_top(5)
-        radio_button_box.set_margin_bottom(5)
-        radio_button_box.set_margin_left(5)
-        radio_button_box.set_margin_right(5)
-
         def on_radio_button_toggled(radio_button, option):
             if radio_button.get_active():
                 if option == "local":
+                    # Local is selected, so disable the remote node text box
                     remote_node_address.set_sensitive(False)
+                    remote_node_address.get_style_context().remove_class("red")  # Remove any highlighting
+                    ok_button.set_sensitive(True)   # Ensure OK is enabled
                 elif option == "remote":
+                    # Remote is selected, so enable the remote node text box
                     remote_node_address.set_sensitive(True)
+                    validate_remote_node_address(remote_node_address)   # Reapply any highlighting if necessary
 
         local_node_radio_button = Gtk.RadioButton.new_with_label_from_widget(None, "Local Node")
         local_node_radio_button.connect("toggled", on_radio_button_toggled, "local")
-        radio_button_box.pack_start(local_node_radio_button, False, False, 0)
-
         remote_node_radio_button = Gtk.RadioButton.new_from_widget(local_node_radio_button)
         remote_node_radio_button.set_label("Remote Node")
         remote_node_radio_button.connect("toggled", on_radio_button_toggled, "remote")
+        radio_button_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        radio_button_box.pack_start(local_node_radio_button, False, False, 0)
         radio_button_box.pack_start(remote_node_radio_button, False, False, 0)
 
+        def validate_remote_node_address(entry):
+            entry_style_context = entry.get_style_context()
+            regex = re.compile(
+                r"^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}:[0-9]{1,5}(\/)?$",
+                re.IGNORECASE)
+            if re.match(regex, remote_node_address.get_text()) is None:
+                # Invalid address so add the red class which will style the element with a red background
+                entry_style_context.add_class("red")
+                ok_button.set_sensitive(False)  # Prevent the user from clicking OK
+            else:
+                # Remove the red class to remove the styling applied to the element
+                entry_style_context.remove_class("red")
+                ok_button.set_sensitive(True)   # Allow the user to click OK
+
         remote_node_address = Gtk.Entry()
-        remote_node_address.set_sensitive(False)
-        remote_node_address.set_margin_bottom(5)
-        remote_node_address.set_margin_left(5)
-        remote_node_address.set_margin_right(5)
+        remote_node_address.set_name("remote_node_address")  # This will be used as the ID of the element
+        remote_node_address.set_sensitive(False)    # Disable this element since Local is the default option
+        remote_node_address.connect("changed", validate_remote_node_address)
+
+        # Check the config in case the remote daemon settings are already defined
         remote_daemon_address = global_variables.wallet_config.get('remoteDaemonAddress', None)
         remote_daemon_port = global_variables.wallet_config.get('remoteDaemonPort', None)
         if remote_daemon_address and remote_daemon_port:
             remote_node_address.set_text("%s:%s" % (remote_daemon_address, remote_daemon_port))
         else:
+            # Thanks to iburnmycd for providing a public daemon service!
             remote_node_address.set_text("public.turtlenode.io:11898")
 
-        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        ok_button = dialog.add_button("OK", Gtk.ResponseType.OK)
-        cancel_button = dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        button_box.pack_end(ok_button, False, False, 0)
-        button_box.pack_end(cancel_button, False, False, 0)
-        ok_button.set_margin_top(5)
-        ok_button.set_margin_bottom(5)
-        ok_button.set_margin_left(5)
-        ok_button.set_margin_right(5)
-        cancel_button.set_margin_top(5)
-        cancel_button.set_margin_bottom(5)
-        cancel_button.set_margin_left(5)
-        cancel_button.set_margin_right(5)
-
         dialog_content.pack_start(label, False, False, 0)
-        dialog_content.pack_end(remote_node_address, False, False, 0)
-        dialog_content.pack_end(radio_button_box, False, False, 0)
-        dialog_content.pack_end(button_box, False, False, 0)
-
-        ok_button.grab_default()
+        dialog_content.pack_end(remote_node_address, False, False, 5)
+        dialog_content.pack_end(radio_button_box, False, False, 5)
+        dialog_content.pack_end(button_box, False, False, 5)
 
         dialog.set_position(Gtk.WindowPosition.CENTER)
+
         dialog.show_all()
+
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             if remote_node_address.is_sensitive():
-                # TODO: validate the entered address
-                remote_daemon_address, remote_daemon_port = remote_node_address.get_text().split(":")
+                # Remote option is selected so parse the address and port
+                remote_daemon_address, remote_daemon_port = remote_node_address.get_text().rsplit(':', 1)
                 global_variables.wallet_config['remoteDaemon'] = True
                 global_variables.wallet_config['remoteDaemonAddress'] = remote_daemon_address
                 global_variables.wallet_config['remoteDaemonPort'] = remote_daemon_port
             else:
+                # Local option is selected so disable remote daemon
                 global_variables.wallet_config['remoteDaemon'] = False
+
+            # Save the settings to the config file
             with open(global_variables.wallet_config_file, 'w') as cFile:
                 cFile.write(json.dumps(global_variables.wallet_config))
+
         dialog.destroy()
+
         return response
 
     def __init__(self, wallet_file_path=None):

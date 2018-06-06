@@ -506,12 +506,21 @@ class MainWindow(object):
 
         # Update the valuation
         if self.current_price:
-            self.builder.get_object("DollarValueAmountLabel").set_text("{:,.2f}".format(
-                float(self.current_price['usd']) * float(self.balances['availableBalance']/100.)))
+            monetary_abbreviation = global_variables.wallet_config.get('monetaryAbbreviation', 'usd').lower()
+            monetary_symbol = global_variables.wallet_config.get('monetarySymbol', '$')
+            if monetary_abbreviation not in self.current_price:
+                main_logger.debug("Unknown monetaryAbbreviation: {0}; using usd".format(monetary_abbreviation))
+                main_logger.debug("Valid monetaryAbbreviation's: {0}".format(self.current_price.keys()))
+                monetary_abbreviation = global_variables.wallet_config['monetaryAbbreviation'] = "usd"
+                monetary_symbol = global_variables.wallet_config['monetarySymbol'] = "$"
+            self.builder.get_object("MonetaryValueSymbolLabel").set_text(monetary_symbol)
+            self.builder.get_object("MonetaryValueAmountLabel").set_text("{:,.2f}".format(
+                float(self.current_price[monetary_abbreviation]) * float(self.balances['availableBalance']/100.)))
             self.builder.get_object("BTCValueAmountLabel").set_text("{:,.8f}".format(
                 float(self.current_price['btc']) * float(self.balances['availableBalance']/100.)))
         else:
-            self.builder.get_object("DollarValueAmountLabel").set_text("---")
+            self.builder.get_object("MonetaryValueSymbolLabel").set_text("")
+            self.builder.get_object("MonetaryValueAmountLabel").set_text("---")
             self.builder.get_object("BTCValueAmountLabel").set_text("---")
 
         # Update the status label in the bottom right with block height, transaction count, peer count, and last refresh time

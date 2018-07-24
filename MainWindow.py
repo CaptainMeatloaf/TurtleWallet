@@ -11,7 +11,8 @@ import threading
 import time
 from gi.repository import Gtk, Gdk, GLib
 import tzlocal
-from requests import ConnectionError
+import requests
+from requests import ConnectionError, HTTPError
 from __init__ import __version__
 import global_variables
 import logging
@@ -508,6 +509,15 @@ class MainWindow(object):
                         "firstBlockIndex": 1,
                         "addresses": self.addresses})['items']
 
+                # Retrieve the current price
+                try:
+                    api_result = requests.get('https://api.coingecko.com/api/v3/coins/turtlecoin')
+                    api_result.raise_for_status()
+                    self.current_price = api_result.json()['market_data']['current_price']
+                except (ValueError, KeyError, HTTPError) as e:
+                    main_logger.error("Failed to retrieve current price: {}".format(e))
+                    self.current_price = []
+
                 self.currentTimeout = 0
                 self.currentTry = 0
 
@@ -610,6 +620,25 @@ class MainWindow(object):
             if transaction[0] not in valid_transactions:
                 self.transactions_list_store.remove(transaction.iter)
 
+        # Update the valuation
+        if self.current_price:
+            monetary_abbreviation = global_variables.wallet_config.get('monetaryAbbreviation', 'usd').lower()
+            monetary_symbol = global_variables.wallet_config.get('monetarySymbol', '$')
+            if monetary_abbreviation not in self.current_price:
+                main_logger.debug("Unknown monetaryAbbreviation: {0}; using usd".format(monetary_abbreviation))
+                main_logger.debug("Valid monetaryAbbreviation's: {0}".format(self.current_price.keys()))
+                monetary_abbreviation = global_variables.wallet_config['monetaryAbbreviation'] = "usd"
+                monetary_symbol = global_variables.wallet_config['monetarySymbol'] = "$"
+            self.builder.get_object("MonetaryValueSymbolLabel").set_text(monetary_symbol)
+            self.builder.get_object("MonetaryValueAmountLabel").set_text("{:,.2f}".format(
+                float(self.current_price[monetary_abbreviation]) * float(self.balances['availableBalance']/100.)))
+            self.builder.get_object("BTCValueAmountLabel").set_text("{:,.8f}".format(
+                float(self.current_price['btc']) * float(self.balances['availableBalance']/100.)))
+        else:
+            self.builder.get_object("MonetaryValueSymbolLabel").set_text("")
+            self.builder.get_object("MonetaryValueAmountLabel").set_text("---")
+            self.builder.get_object("BTCValueAmountLabel").set_text("---")
+
         # Update the status label in the bottom right with block height, transaction count, peer count, and last refresh time
         if self.status:
             block_count = self.status['blockCount']
@@ -670,6 +699,8 @@ class MainWindow(object):
         self.status = []
         self.blocks = []
 
+        # Initialize current price data
+        self.current_price = []
         # Keep track of the known block count in order to detect if it goes down (it occasionally temporarily drops)
         self.previous_known_block_count = 0
 

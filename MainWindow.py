@@ -17,11 +17,29 @@ import global_variables
 import logging
 import json
 from string import Template
+from enum import IntEnum
 
 from HelperFunctions import copy_text
 
 # Get Logger made in start.py
 main_logger = logging.getLogger('trtl_log.main')
+
+
+class WalletTransactionState(IntEnum):
+    """Defines the possible states for a transaction."""
+    succeeded = 0,
+    failed = 1,
+    cancelled = 2,
+    created = 3,
+    deleted = 4
+
+
+class WalletTransferType(IntEnum):
+    """Defines the possible types of a transfer within a transaction."""
+    usual = 0,
+    donation = 1,
+    change = 2
+
 
 class UILogHandler(logging.Handler):
     """
@@ -35,11 +53,15 @@ class UILogHandler(logging.Handler):
         self.textbuffer = textbuffer
 
     def handle(self, rec):
-        #everytime logging occurs this handle will add the
-        #message to our log textview, however the UI only
-        #logs relevant things like TX sends, receives, and errors.
-        end_iter = self.textbuffer.get_end_iter() #Gets the position of the end of the string in the logBuffer
-        self.textbuffer.insert(end_iter, "\n" + rec.msg) #Appends new message to the end of buffer, which reflects in LogTextView
+        # Every time logging occurs, this will add a function to be called on the default main loop
+        # (whenever there are no higher priority events pending)
+        # that appends the message to the end of the text buffer, which reflects in the text view.
+        GLib.idle_add(self.update_text_buffer, self.format(rec) + "\n")
+
+    def update_text_buffer(self, text):
+        # Append the message to the end of the text buffer, which reflects in the text view
+        end_iter = self.textbuffer.get_end_iter()  # Gets the position of the end of the string in the logBuffer
+        self.textbuffer.insert(end_iter, text)  # Appends new message to the end of buffer, which reflects in LogTextView
 
 class MainWindow(object):
     """
@@ -210,6 +232,8 @@ class MainWindow(object):
             self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(0))
             self.transactions_list_store.clear()
             self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+            self.builder.get_object("SendTRTLSubBox").hide()
+            self.builder.get_object("SendTRTLMessageLabel").show()
 
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
@@ -377,6 +401,65 @@ class MainWindow(object):
                 .set_label("Failed: {}".format(e))
             main_logger.error(global_variables.message_dict["FAILED_SEND_EXCEPTION"].format(e))
 
+    def on_HomeTransactionsTreeView_row_activated(self, iter, path, user_data=None):
+        """Called by GTK when a row is activated (double clicked) in the transactions treeview
+            This shows the transaction details dialog"""
+        # Get the dialog from the builder
+        transaction_dialog = self.builder.get_object("TransactionDialog")
+
+        # Retrieve the selected transaction details
+        selected_transaction = None
+        for block in self.blocks:
+            if selected_transaction:
+                break
+            for transaction in block['transactions']:
+                if transaction['transactionHash'] == self.transactions_list_store[path][0]:
+                    selected_transaction = transaction
+                    block_hash = block['blockHash']
+                    break
+
+        if not selected_transaction:
+            error_dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Error")
+            error_dialog.format_secondary_text("Transaction with the following hash no longer exists: %s" % self.transactions_list_store[path][0])
+            error_dialog.run()
+            error_dialog.destroy()
+            return
+
+        # Populate the dialog with the transaction details
+        self.builder.get_object("TransactionDateValue").set_text(datetime.fromtimestamp(
+            selected_transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"))
+        self.builder.get_object("TransactionBlockIndexValue").set_label(str(selected_transaction['blockIndex']))
+        self.builder.get_object("TransactionBlockIndexLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_block" % block_hash)
+        self.builder.get_object("TransactionHashValue").set_label(selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionHashLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_transaction" % selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
+        self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
+        self.builder.get_object("TransactionStateValue").set_text(WalletTransactionState(transaction['state']).name.capitalize())
+        self.builder.get_object("TransactionUnlockTimeValue").set_text(str(transaction['unlockTime']))
+        if transaction['unlockTime'] > 0:
+            self.builder.get_object("TransactionUnlockTimeBox").show()
+        else:
+            self.builder.get_object("TransactionUnlockTimeBox").hide()
+        self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
+        self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<NONE>")
+        if transaction['paymentId']:
+            self.builder.get_object("TransactionPaymentIdBox").show()
+        else:
+            self.builder.get_object("TransactionPaymentIdBox").hide()
+        transaction_list_store = self.builder.get_object("TransactionListStore")
+        transaction_list_store.clear()
+        for transfer in selected_transaction['transfers']:
+            transaction_list_store.append([
+                WalletTransferType(transfer['type']).name.capitalize(),
+                "{:,.2f}".format(transfer['amount']/100.),
+                transfer['address'] if transfer['address'] else "<UNKNOWN>"
+            ])
+
+        # Run the dialog and await for it's response (in this case to be closed)
+        transaction_dialog.run()
+
+        # Hide the dialog upon it's closure
+        transaction_dialog.hide()
 
     def clear_send_ui(self):
         """
@@ -402,6 +485,20 @@ class MainWindow(object):
 
                 # Request the current status from the wallet
                 self.status = global_variables.wallet_connection.request("getStatus")
+
+                # Keep track of the known block count and log a warning if it has gone down (it occasionally temporarily drops, not sure why?)
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                known_block_count = self.status['knownBlockCount']
+                if known_block_count+1 < self.previous_known_block_count:
+                    main_logger.warning(
+                        "Known block height {} has dropped from its previous value {}".format(known_block_count, self.previous_known_block_count))
+                self.previous_known_block_count = known_block_count
+
+                # Check if the block count is above the known block count and log a warning if so
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                block_count = self.status['blockCount']
+                if block_count-1 > known_block_count:
+                    main_logger.warning("Current block height {} is above the known block height {}".format(block_count, known_block_count))
 
                 # Request all transactions related to our addresses from the wallet
                 # This returns a list of blocks with only our transactions populated in them
@@ -451,6 +548,7 @@ class MainWindow(object):
                                    title)
 
         dialog.set_title(message)
+        dialog.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
         dialog.show_all()
         response = dialog.run()
         dialog.destroy()
@@ -486,21 +584,6 @@ class MainWindow(object):
         for block in self.blocks:
             if block['transactions']: # Check the block contains any transactions
                 for transaction in block['transactions']: # Loop through each transaction in the block
-                    # To locate the address, we need to find the relevant transfer within the transaction
-                    address = None
-                    if transaction['amount'] < 0: # If the transaction was sent from this address
-                        # Get the desired transfer amount, accounting for the fee and the transaction being
-                        # negative as it was sent, not received
-                        desired_transfer_amount = (transaction['amount'] + transaction['fee']) * -1
-                    else:
-                        desired_transfer_amount = transaction['amount']
-
-                    # Now loop through the transfers and find the address with the correctly transferred amount
-                    for transfer in transaction['transfers']:
-                        if transfer['amount'] == desired_transfer_amount:
-                            address = transfer['address']
-                            break
-
                     # Append new transactions to the treeview's backing list store in the correct format
                     if transaction['transactionHash'] not in tx_hash_list:
                         self.transactions_list_store.prepend([
@@ -514,8 +597,6 @@ class MainWindow(object):
                             "{:,.2f}".format(transaction['amount']/100.),
                             # Format the transaction time for the user's local timezone
                             datetime.fromtimestamp(transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"),
-                            # The address as located earlier
-                            address
                         ])
                         tx_hash_list.append(transaction['transactionHash'])
 
@@ -529,7 +610,7 @@ class MainWindow(object):
             if transaction[0] not in valid_transactions:
                 self.transactions_list_store.remove(transaction.iter)
 
-        # Update the status label in the bottom right with block height, peer count, and last refresh time
+        # Update the status label in the bottom right with block height, transaction count, peer count, and last refresh time
         if self.status:
             block_count = self.status['blockCount']
             known_block_count = self.status['knownBlockCount']
@@ -540,17 +621,34 @@ class MainWindow(object):
             block_height_string = "<b>Current block height</b> {}".format(block_count)
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
-            if block_count+1 < known_block_count:
+            if known_block_count+1 < self.previous_known_block_count:
+                # The known block count occasionally temporarily drops
+                # If it has dropped, we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            elif block_count+1 < known_block_count:
+                # Wallet is synchronizing (block count is catching up to the known block count)
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
-            status_label = "{0} | <b>Peer count</b> {1} | <b>Last updated</b> {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
+                self.builder.get_object("SendTRTLSubBox").hide()
+                self.builder.get_object("SendTRTLMessageLabel").show()
+            elif block_count-1 > known_block_count:
+                # If the block count is above the known block count we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            else:
+                # Wallet is synchronized (block count has caught up with the known block count)
+                self.builder.get_object("SendTRTLSubBox").show()
+                self.builder.get_object("SendTRTLMessageLabel").hide()
+            status_label = "{0} | <b>Transactions</b> {1} | <b>Peer count</b> {2} | <b>Last updated</b> {3}".format(
+                block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
 
             # Logging here for debug purposes. Sloppy Joe..
-            main_logger.debug("REFRESH STATS:" + "\r\n" +
-                              "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
-                              "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
-                              "Address: " + str(self.addresses[0]) + "\r\n" +
-                              "Status: " + "{0} | Peer count {1} | Last updated {2}".format(block_height_string, peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
+            main_logger.debug(
+                "REFRESH STATS:" + "\r\n" +
+                "AvailableBalanceAmountLabel: {:,.2f}".format(self.balances['availableBalance']/100.) + "\r\n" +
+                "LockedBalanceAmountLabel: {:,.2f}".format(self.balances['lockedAmount']/100.) + "\r\n" +
+                "Address: " + str(self.addresses[0]) + "\r\n" +
+                "Status: {0} | Transactions {1} | Peer count {2} | Last updated {3}".format(
+                    block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S")))
 
         # Return True so GLib continues to call this method
         return True
@@ -572,6 +670,9 @@ class MainWindow(object):
         self.status = []
         self.blocks = []
 
+        # Keep track of the known block count in order to detect if it goes down (it occasionally temporarily drops)
+        self.previous_known_block_count = 0
+
         # Get the transaction treeview's backing list store
         self.transactions_list_store = self.builder.get_object("HomeTransactionsListStore")
 
@@ -591,6 +692,7 @@ class MainWindow(object):
         # information as the log file, with less verbose (INFO).
         uiHandler = UILogHandler(self.builder.get_object("LogBuffer"))
         uiHandler.setLevel(logging.INFO)
+        uiHandler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s'))
         main_logger.addHandler(uiHandler)
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
 
@@ -774,18 +876,25 @@ class MainWindow(object):
 
         #If wallet is different than cached config wallet, Prompt if user would like to set default wallet
         with open(global_variables.wallet_config_file,) as configFile:
-            tmpconfig = json.loads(configFile.read())
-        if global_variables.wallet_connection.wallet_file != tmpconfig['walletPath']:
+            try:
+                tmpconfig = json.loads(configFile.read())
+                wallet_path = tmpconfig['walletPath']
+            except ValueError:
+                wallet_path = None
+        if global_variables.wallet_connection.wallet_file != wallet_path:
             if self.MainWindow_generic_dialog("Would you like to default to this wallet on start of Turtle Wallet?", "Default Wallet"):
                 global_variables.wallet_config["walletPath"] = global_variables.wallet_connection.wallet_file
-        #cache that user has indeed been inside a wallet before
-        global_variables.wallet_config["hasWallet"]  = True
+                # cache that user has indeed been inside a wallet before
+                global_variables.wallet_config["hasWallet"] = True
+            else:
+                global_variables.wallet_config["walletPath"] = ""
+
         #save config file
         try:
             with open(global_variables.wallet_config_file,'w') as cFile:
                 cFile.write(json.dumps(global_variables.wallet_config))
         except Exception as e:
-            splash_logger.warn("Could not save config file: {}".format(e))
+            main_logger.warn("Could not save config file: {}".format(e))
 
         # Start the wallet data request loop in a new thread
         self._stop_update_thread = threading.Event()

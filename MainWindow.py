@@ -17,11 +17,30 @@ from __init__ import __version__
 import global_variables
 import logging
 import json
+from string import Template
+from enum import IntEnum
 
 from HelperFunctions import copy_text
 
 # Get Logger made in start.py
 main_logger = logging.getLogger('trtl_log.main')
+
+
+class WalletTransactionState(IntEnum):
+    """Defines the possible states for a transaction."""
+    succeeded = 0,
+    failed = 1,
+    cancelled = 2,
+    created = 3,
+    deleted = 4
+
+
+class WalletTransferType(IntEnum):
+    """Defines the possible types of a transfer within a transaction."""
+    usual = 0,
+    donation = 1,
+    change = 2
+
 
 class UILogHandler(logging.Handler):
     """
@@ -35,11 +54,15 @@ class UILogHandler(logging.Handler):
         self.textbuffer = textbuffer
 
     def handle(self, rec):
-        #everytime logging occurs this handle will add the
-        #message to our log textview, however the UI only
-        #logs relevant things like TX sends, receives, and errors.
-        end_iter = self.textbuffer.get_end_iter() #Gets the position of the end of the string in the logBuffer
-        self.textbuffer.insert(end_iter, "\n" + rec.msg) #Appends new message to the end of buffer, which reflects in LogTextView
+        # Every time logging occurs, this will add a function to be called on the default main loop
+        # (whenever there are no higher priority events pending)
+        # that appends the message to the end of the text buffer, which reflects in the text view.
+        GLib.idle_add(self.update_text_buffer, self.format(rec) + "\n")
+
+    def update_text_buffer(self, text):
+        # Append the message to the end of the text buffer, which reflects in the text view
+        end_iter = self.textbuffer.get_end_iter()  # Gets the position of the end of the string in the logBuffer
+        self.textbuffer.insert(end_iter, text)  # Appends new message to the end of buffer, which reflects in LogTextView
 
 class MainWindow(object):
     """
@@ -101,31 +124,66 @@ class MainWindow(object):
             noteBook.remove_page(noteBook.page_num(RPCBox))
             self.builder.get_object("RPCMenuItem").set_active(False)
 
+    def on_RPCMethodComboBox_changed(self, object):
+        """ Called by GTK when the selected RPC method is changed """
+        # Determine which method has been selected
+        method = self.rpc_method_list_store[self.builder.get_object("RPCMethodComboBox").get_active()][0]
+
+        # Show the description for the selected method
+        self.builder.get_object("RPCMethodDescriptionLabel").set_text(self.RPCCommands[method]['Description'])
+
+        # Get a valid transaction hash (for use within the arguments)
+        transaction_hash = ""
+        if self.blocks:
+            transaction_hash = self.blocks[-1]['transactions'][-1]['transactionHash']
+
+        # Populate the arguments text field with appropriate data based on the selected method
+        self.builder.get_object("RPCArgumentsTextBuffer").set_text(self.RPCCommands[method]['Arguments'].safe_substitute(dict(
+            address=self.addresses[0] if self.addresses else "",
+            transactionHash=transaction_hash
+        )))
+
     def on_rpcSendButton_clicked(self, object, data=None):
         """ Called by GTK when the RPCSend button has been clicked """
-        method = self.builder.get_object("RPCMethodEntry").get_text()
-        args = self.builder.get_object("RPCArgumentsEntry").get_text()
+        # Determine which method has been selected
+        method = self.rpc_method_list_store[self.builder.get_object("RPCMethodComboBox").get_active()][0]
 
-        #Check the method and arg are somewhat valid
+        # Get the arguments
+        args_text_buffer = self.builder.get_object("RPCArgumentsTextBuffer")
+        start_iter = args_text_buffer.get_start_iter()
+        end_iter = args_text_buffer.get_end_iter()
+        args = args_text_buffer.get_text(start_iter, end_iter, True)
+
+        # Validate the method and arguments are somewhat valid
         if method == "":
             end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + "ERROR: Invalid Method given.")
+            self.RPCbuffer.insert(end_iter, "> \nERROR: Must specify a method" + "\n\n")
             return
-        try:
-            args_dict = json.loads(args)
-        except:
-            end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + 'ERROR: Invalid JSON in arguments given. Ex. \n {"blockCount":1000, "firstBlockIndex":1,"addresses":[ "22p4wUHAMndSscvtYErtqUaYrcUTvrZ9zhWwxc3JtkBHAnw4FJqenZyaePSApKWwJ5BjCJz1fKJoA6QHn5j6bVHg8A8dyhp"]}')
-            return
+        if args == "":
+            # If no arguments specified, assume an empty dictionary
+            args_dict = {}
+        else:
+            try:
+                args_dict = json.loads(args)
+            except ValueError:
+                end_iter = self.RPCbuffer.get_end_iter()
+                self.RPCbuffer.insert(end_iter, "> " + method + "()\nERROR: Arguments are not in valid JSON format\n\n")
+                return
 
-        #Send the request to RPC server and print results on textview
+        # Send the request to RPC server and print results on textview
         try:
-            r = global_variables.wallet_connection.request(method,args_dict)
+            r = global_variables.wallet_connection.request(method, args_dict)
             end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + "SUCCESS:\n" + json.dumps(r))
+            self.RPCbuffer.insert(end_iter, "> " + method + "()\n" + json.dumps(r) + "\n\n")
         except Exception as e:
             end_iter = self.RPCbuffer.get_end_iter()
-            self.RPCbuffer.insert(end_iter, "\n\n" + "ERROR:\n" + str(e))
+            self.RPCbuffer.insert(end_iter, "> " + method + "()\nERROR: " + str(e) + "\n\n")
+
+    def on_rpcClearButton_clicked(self, object, data=None):
+        """ Called by GTK when the RPCClear button has been clicked """
+        start_iter = self.RPCbuffer.get_start_iter()
+        end_iter = self.RPCbuffer.get_end_iter()
+        self.RPCbuffer.delete(start_iter, end_iter)
 
     def on_RPCTextView_size_allocate(self, *args):
         """The GTK Auto Scrolling method used to scroll RPC view when info is added"""
@@ -175,6 +233,8 @@ class MainWindow(object):
             self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(0))
             self.transactions_list_store.clear()
             self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+            self.builder.get_object("SendTRTLSubBox").hide()
+            self.builder.get_object("SendTRTLMessageLabel").show()
 
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
@@ -342,6 +402,65 @@ class MainWindow(object):
                 .set_label("Failed: {}".format(e))
             main_logger.error(global_variables.message_dict["FAILED_SEND_EXCEPTION"].format(e))
 
+    def on_HomeTransactionsTreeView_row_activated(self, iter, path, user_data=None):
+        """Called by GTK when a row is activated (double clicked) in the transactions treeview
+            This shows the transaction details dialog"""
+        # Get the dialog from the builder
+        transaction_dialog = self.builder.get_object("TransactionDialog")
+
+        # Retrieve the selected transaction details
+        selected_transaction = None
+        for block in self.blocks:
+            if selected_transaction:
+                break
+            for transaction in block['transactions']:
+                if transaction['transactionHash'] == self.transactions_list_store[path][0]:
+                    selected_transaction = transaction
+                    block_hash = block['blockHash']
+                    break
+
+        if not selected_transaction:
+            error_dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Error")
+            error_dialog.format_secondary_text("Transaction with the following hash no longer exists: %s" % self.transactions_list_store[path][0])
+            error_dialog.run()
+            error_dialog.destroy()
+            return
+
+        # Populate the dialog with the transaction details
+        self.builder.get_object("TransactionDateValue").set_text(datetime.fromtimestamp(
+            selected_transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"))
+        self.builder.get_object("TransactionBlockIndexValue").set_label(str(selected_transaction['blockIndex']))
+        self.builder.get_object("TransactionBlockIndexLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_block" % block_hash)
+        self.builder.get_object("TransactionHashValue").set_label(selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionHashLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_transaction" % selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
+        self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
+        self.builder.get_object("TransactionStateValue").set_text(WalletTransactionState(transaction['state']).name.capitalize())
+        self.builder.get_object("TransactionUnlockTimeValue").set_text(str(transaction['unlockTime']))
+        if transaction['unlockTime'] > 0:
+            self.builder.get_object("TransactionUnlockTimeBox").show()
+        else:
+            self.builder.get_object("TransactionUnlockTimeBox").hide()
+        self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
+        self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<NONE>")
+        if transaction['paymentId']:
+            self.builder.get_object("TransactionPaymentIdBox").show()
+        else:
+            self.builder.get_object("TransactionPaymentIdBox").hide()
+        transaction_list_store = self.builder.get_object("TransactionListStore")
+        transaction_list_store.clear()
+        for transfer in selected_transaction['transfers']:
+            transaction_list_store.append([
+                WalletTransferType(transfer['type']).name.capitalize(),
+                "{:,.2f}".format(transfer['amount']/100.),
+                transfer['address'] if transfer['address'] else "<UNKNOWN>"
+            ])
+
+        # Run the dialog and await for it's response (in this case to be closed)
+        transaction_dialog.run()
+
+        # Hide the dialog upon it's closure
+        transaction_dialog.hide()
 
     def clear_send_ui(self):
         """
@@ -367,6 +486,20 @@ class MainWindow(object):
 
                 # Request the current status from the wallet
                 self.status = global_variables.wallet_connection.request("getStatus")
+
+                # Keep track of the known block count and log a warning if it has gone down (it occasionally temporarily drops, not sure why?)
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                known_block_count = self.status['knownBlockCount']
+                if known_block_count+1 < self.previous_known_block_count:
+                    main_logger.warning(
+                        "Known block height {} has dropped from its previous value {}".format(known_block_count, self.previous_known_block_count))
+                self.previous_known_block_count = known_block_count
+
+                # Check if the block count is above the known block count and log a warning if so
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                block_count = self.status['blockCount']
+                if block_count-1 > known_block_count:
+                    main_logger.warning("Current block height {} is above the known block height {}".format(block_count, known_block_count))
 
                 # Request all transactions related to our addresses from the wallet
                 # This returns a list of blocks with only our transactions populated in them
@@ -461,21 +594,6 @@ class MainWindow(object):
         for block in self.blocks:
             if block['transactions']: # Check the block contains any transactions
                 for transaction in block['transactions']: # Loop through each transaction in the block
-                    # To locate the address, we need to find the relevant transfer within the transaction
-                    address = None
-                    if transaction['amount'] < 0: # If the transaction was sent from this address
-                        # Get the desired transfer amount, accounting for the fee and the transaction being
-                        # negative as it was sent, not received
-                        desired_transfer_amount = (transaction['amount'] + transaction['fee']) * -1
-                    else:
-                        desired_transfer_amount = transaction['amount']
-
-                    # Now loop through the transfers and find the address with the correctly transferred amount
-                    for transfer in transaction['transfers']:
-                        if transfer['amount'] == desired_transfer_amount:
-                            address = transfer['address']
-                            break
-
                     # Append new transactions to the treeview's backing list store in the correct format
                     if transaction['transactionHash'] not in tx_hash_list:
                         self.transactions_list_store.prepend([
@@ -489,8 +607,6 @@ class MainWindow(object):
                             "{:,.2f}".format(transaction['amount']/100.),
                             # Format the transaction time for the user's local timezone
                             datetime.fromtimestamp(transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"),
-                            # The address as located earlier
-                            address
                         ])
                         tx_hash_list.append(transaction['transactionHash'])
 
@@ -534,8 +650,22 @@ class MainWindow(object):
             block_height_string = "<b>Current block height</b> {}".format(block_count)
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
-            if block_count+1 < known_block_count:
+            if known_block_count+1 < self.previous_known_block_count:
+                # The known block count occasionally temporarily drops
+                # If it has dropped, we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            elif block_count+1 < known_block_count:
+                # Wallet is synchronizing (block count is catching up to the known block count)
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
+                self.builder.get_object("SendTRTLSubBox").hide()
+                self.builder.get_object("SendTRTLMessageLabel").show()
+            elif block_count-1 > known_block_count:
+                # If the block count is above the known block count we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            else:
+                # Wallet is synchronized (block count has caught up with the known block count)
+                self.builder.get_object("SendTRTLSubBox").show()
+                self.builder.get_object("SendTRTLMessageLabel").hide()
             status_label = "{0} | <b>Transactions</b> {1} | <b>Peer count</b> {2} | <b>Last updated</b> {3}".format(
                 block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
@@ -571,6 +701,8 @@ class MainWindow(object):
 
         # Initialize current price data
         self.current_price = []
+        # Keep track of the known block count in order to detect if it goes down (it occasionally temporarily drops)
+        self.previous_known_block_count = 0
 
         # Get the transaction treeview's backing list store
         self.transactions_list_store = self.builder.get_object("HomeTransactionsListStore")
@@ -591,12 +723,178 @@ class MainWindow(object):
         # information as the log file, with less verbose (INFO).
         uiHandler = UILogHandler(self.builder.get_object("LogBuffer"))
         uiHandler.setLevel(logging.INFO)
+        uiHandler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s'))
         main_logger.addHandler(uiHandler)
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
 
         #Setup UI RPC variables
+        self.RPCCommands = {
+            'reset': {
+                'Description': "Resets and re-synchronizes your wallet.",
+                'Arguments': Template("")},
+            'save': {
+                'Description': "Saves your wallet to file.",
+                'Arguments': Template("")},
+            'getViewKey': {
+                'Description': "Returns your private view key.",
+                'Arguments': Template("")},
+            'getSpendKeys': {
+                'Description': "Returns your private and public spend keys for a given address.",
+                'Arguments': Template('{"address":"$address"}')},
+            'getStatus': {
+                'Description': "Returns information about the current wallet state.",
+                'Arguments': Template("")},
+            'getAddresses': {
+                'Description': "Returns all of your wallet's addresses.",
+                'Arguments': Template("")},
+            'createAddress': {
+                'Description': "Creates an address and adds it to your wallet.",
+                'Arguments': Template("")},
+            'deleteAddress': {
+                'Description': "Deletes a specified address from your wallet.",
+                'Arguments': Template('{"address":""}')},
+            'getBalance': {
+                'Description': "Returns the balance of a specified address. If address is not specified, returns a cumulative balance of all wallet's addresses.",
+                'Arguments': Template('{"address":""}')},
+            'getBlockHashes': {
+                'Description': "Returns the hashes of all blocks within a specified range.",
+                'Arguments': Template('{\n"firstBlockIndex":1,\n"blockCount":10\n}')},
+            'getTransactionHashes': {
+                'Description': "Returns the hashes of all blocks and transactions in those blocks within a specified range and optionally only for specified addresses and paymentId.",
+                'Arguments': Template(
+                    '{\n'
+                    '"firstBlockIndex":1,\n'
+                    '"blockCount":10,\n'
+                    '"addresses":[\n'
+                    '    "$address"\n'
+                    '],\n'
+                    '"paymentID":""\n'
+                    '}'
+                )},
+            'getTransactions': {
+                'Description': "Returns information about the transactions within a specified range and optionally only for specified addresses and paymentId.",
+                'Arguments': Template(
+                    '{\n'
+                    '"firstBlockIndex":1,\n'
+                    '"blockCount":10,\n'
+                    '"addresses":[\n'
+                    '    "$address"\n'
+                    '],\n'
+                    '"paymentID":""\n'
+                    '}'
+                )},
+            'getUnconfirmedTransactionHashes': {
+                'Description': "Returns information about the current unconfirmed transaction pool and optionally only for specified addresses.",
+                'Arguments': Template(
+                    '{\n'
+                    '"addresses":[\n'
+                    '    "$address"\n'
+                    ']\n'
+                    '}'
+                )},
+            'getTransaction': {
+                'Description': "Returns information about the specified transaction.",
+                'Arguments': Template('{"transactionHash":"$transactionHash"}')},
+            'sendTransaction': {
+                'Description': "Creates and sends a transaction to one or several addresses.",
+                'Arguments': Template(
+                    '{\n'
+                    '"anonymity":3,\n'
+                    '"fee":10,\n'
+                    '"unlockTime":0,\n'
+                    '"paymentID":"",\n'
+                    '"addresses":[\n'
+                    '   "$address"\n'
+                    '],\n'
+                    '"transfers":[\n'
+                    '   {\n'
+                    '     "amount":1000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":2000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":3000,\n'
+                    '     "address":"$address"\n'
+                    '   }\n'
+                    '],\n'
+                    '"changeAddress":"$address",\n'
+                    '"extra":""\n'
+                    '}'
+                )
+            },
+            'createDelayedTransaction': {
+                'Description': "Creates but does not send a transaction. The transaction is not sent to the network automatically and must be sent using the sendDelayedTransaction method.",
+                'Arguments': Template(
+                    '{\n'
+                    '"anonymity":3,\n'
+                    '"fee":10,\n'
+                    '"unlockTime":0,\n'
+                    '"paymentID":"",\n'
+                    '"addresses":[\n'
+                    '   "$address"\n'
+                    '],\n'
+                    '"transfers":[\n'
+                    '   {\n'
+                    '     "amount":1000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":2000,\n'
+                    '     "address":"$address"\n'
+                    '   },\n'
+                    '   {\n'
+                    '     "amount":3000,\n'
+                    '     "address":"$address"\n'
+                    '   }\n'
+                    '],\n'
+                    '"changeAddress":"$address",\n'
+                    '"extra":""\n'
+                    '}'
+                )
+            },
+            'getDelayedTransactionHashes': {
+                'Description': "Returns hashes of delayed transactions.",
+                'Arguments': Template("")},
+            'deleteDelayedTransaction': {
+                'Description': "Deletes a specified delayed transaction.",
+                'Arguments': Template('{"transactionHash":""}')},
+            'sendDelayedTransaction': {
+                'Description': "Sends a specified delayed transaction.",
+                'Arguments': Template('{"transactionHash":""}')},
+            'sendFusionTransaction': {
+                'Description': "Creates and sends a fusion transaction, by taking funds from selected addresses and transferring them to the destination address.",
+                'Arguments': Template(
+                    '{\n'
+                    '"anonymity": 3,\n'
+                    '"threshold": 1000,\n'
+                    '"addresses": [\n'
+                    '    "$address"\n'
+                    '],\n'
+                    '"destinationAddress": "$address"\n'
+                    '}'
+                )
+            },
+            'estimateFusion': {
+                'Description': "Allows to estimate a number of outputs that can be optimized with fusion transactions.",
+                'Arguments': Template(
+                    '{\n'
+                    '"threshold": 1000,\n'
+                    '"addresses": [\n'
+                    '    "$address"\n'
+                    ']\n'
+                    '}'
+                )
+            }
+        }
         self.RPCbuffer = self.builder.get_object("RPCTextView").get_buffer()
         self.RPCScroller = self.builder.get_object("RPCScrolledWindow")
+        self.rpc_method_list_store = self.builder.get_object("RPCMethodListStore")
+        for method in sorted(self.RPCCommands.keys()):
+            self.rpc_method_list_store.append([method])
+        self.builder.get_object("RPCMethodComboBox").set_active(0)
 
         #Set the default fee amount in the FeeEntry widget
         self.builder.get_object("FeeEntry").set_text(str(float(global_variables.static_fee) / float(100)))

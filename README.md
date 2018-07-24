@@ -17,6 +17,7 @@ It also has the following prerequisites, installed via `pip`
 * psutil
 * requests
 * tzlocal
+* enum34
 
 __WINDOWS__: PyGObject instructions for Windows requires MSYS to be running. Some of the python packages are not permitted on this
 platform and additionally it adds some overhead to development. This [installer](https://sourceforge.net/projects/pygobjectwin32/) installs the required GTK libs natively.
@@ -24,8 +25,6 @@ The installer contains a wizard which will guide you through selecting which pyt
 you want installed: look for the GTK and glade options.
 
 ### Running
-
-**Note: opening your wallet with `walletd` renders it no longer readable by `simplewallet`. Please make a backup, as always.**
 
 Getting this wallet running is easy.
 

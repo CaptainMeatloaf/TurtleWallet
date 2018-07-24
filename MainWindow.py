@@ -16,11 +16,29 @@ from __init__ import __version__
 import global_variables
 import logging
 import json
+from enum import IntEnum
 
 from HelperFunctions import copy_text
 
 # Get Logger made in start.py
 main_logger = logging.getLogger('trtl_log.main')
+
+
+class WalletTransactionState(IntEnum):
+    """Defines the possible states for a transaction."""
+    succeeded = 0,
+    failed = 1,
+    cancelled = 2,
+    created = 3,
+    deleted = 4
+
+
+class WalletTransferType(IntEnum):
+    """Defines the possible types of a transfer within a transaction."""
+    usual = 0,
+    donation = 1,
+    change = 2
+
 
 class UILogHandler(logging.Handler):
     """
@@ -341,6 +359,65 @@ class MainWindow(object):
                 .set_label("Failed: {}".format(e))
             main_logger.error(global_variables.message_dict["FAILED_SEND_EXCEPTION"].format(e))
 
+    def on_HomeTransactionsTreeView_row_activated(self, iter, path, user_data=None):
+        """Called by GTK when a row is activated (double clicked) in the transactions treeview
+            This shows the transaction details dialog"""
+        # Get the dialog from the builder
+        transaction_dialog = self.builder.get_object("TransactionDialog")
+
+        # Retrieve the selected transaction details
+        selected_transaction = None
+        for block in self.blocks:
+            if selected_transaction:
+                break
+            for transaction in block['transactions']:
+                if transaction['transactionHash'] == self.transactions_list_store[path][0]:
+                    selected_transaction = transaction
+                    block_hash = block['blockHash']
+                    break
+
+        if not selected_transaction:
+            error_dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.ERROR, Gtk.ButtonsType.OK, "Error")
+            error_dialog.format_secondary_text("Transaction with the following hash no longer exists: %s" % self.transactions_list_store[path][0])
+            error_dialog.run()
+            error_dialog.destroy()
+            return
+
+        # Populate the dialog with the transaction details
+        self.builder.get_object("TransactionDateValue").set_text(datetime.fromtimestamp(
+            selected_transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"))
+        self.builder.get_object("TransactionBlockIndexValue").set_label(str(selected_transaction['blockIndex']))
+        self.builder.get_object("TransactionBlockIndexLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_block" % block_hash)
+        self.builder.get_object("TransactionHashValue").set_label(selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionHashLink").set_uri("https://blocks.turtle.link/?hash=%s#blockchain_transaction" % selected_transaction['transactionHash'])
+        self.builder.get_object("TransactionAmountValue").set_text("{:,.2f}".format(transaction['amount']/100.))
+        self.builder.get_object("TransactionFeeValue").set_text("{:,.2f}".format(transaction['fee']/100.))
+        self.builder.get_object("TransactionStateValue").set_text(WalletTransactionState(transaction['state']).name.capitalize())
+        self.builder.get_object("TransactionUnlockTimeValue").set_text(str(transaction['unlockTime']))
+        if transaction['unlockTime'] > 0:
+            self.builder.get_object("TransactionUnlockTimeBox").show()
+        else:
+            self.builder.get_object("TransactionUnlockTimeBox").hide()
+        self.builder.get_object("TransactionExtraValue").set_text(transaction['extra'])
+        self.builder.get_object("TransactionPaymentIdValue").set_text(transaction['paymentId'] if transaction['paymentId'] else "<NONE>")
+        if transaction['paymentId']:
+            self.builder.get_object("TransactionPaymentIdBox").show()
+        else:
+            self.builder.get_object("TransactionPaymentIdBox").hide()
+        transaction_list_store = self.builder.get_object("TransactionListStore")
+        transaction_list_store.clear()
+        for transfer in selected_transaction['transfers']:
+            transaction_list_store.append([
+                WalletTransferType(transfer['type']).name.capitalize(),
+                "{:,.2f}".format(transfer['amount']/100.),
+                transfer['address'] if transfer['address'] else "<UNKNOWN>"
+            ])
+
+        # Run the dialog and await for it's response (in this case to be closed)
+        transaction_dialog.run()
+
+        # Hide the dialog upon it's closure
+        transaction_dialog.hide()
 
     def clear_send_ui(self):
         """
@@ -451,21 +528,6 @@ class MainWindow(object):
         for block in self.blocks:
             if block['transactions']: # Check the block contains any transactions
                 for transaction in block['transactions']: # Loop through each transaction in the block
-                    # To locate the address, we need to find the relevant transfer within the transaction
-                    address = None
-                    if transaction['amount'] < 0: # If the transaction was sent from this address
-                        # Get the desired transfer amount, accounting for the fee and the transaction being
-                        # negative as it was sent, not received
-                        desired_transfer_amount = (transaction['amount'] + transaction['fee']) * -1
-                    else:
-                        desired_transfer_amount = transaction['amount']
-
-                    # Now loop through the transfers and find the address with the correctly transferred amount
-                    for transfer in transaction['transfers']:
-                        if transfer['amount'] == desired_transfer_amount:
-                            address = transfer['address']
-                            break
-
                     # Append new transactions to the treeview's backing list store in the correct format
                     if transaction['transactionHash'] not in tx_hash_list:
                         self.transactions_list_store.prepend([
@@ -479,8 +541,6 @@ class MainWindow(object):
                             "{:,.2f}".format(transaction['amount']/100.),
                             # Format the transaction time for the user's local timezone
                             datetime.fromtimestamp(transaction['timestamp'], tzlocal.get_localzone()).strftime("%Y/%m/%d %H:%M:%S%z (%Z)"),
-                            # The address as located earlier
-                            address
                         ])
                         tx_hash_list.append(transaction['transactionHash'])
 

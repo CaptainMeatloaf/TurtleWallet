@@ -52,11 +52,15 @@ class UILogHandler(logging.Handler):
         self.textbuffer = textbuffer
 
     def handle(self, rec):
-        #everytime logging occurs this handle will add the
-        #message to our log textview, however the UI only
-        #logs relevant things like TX sends, receives, and errors.
-        end_iter = self.textbuffer.get_end_iter() #Gets the position of the end of the string in the logBuffer
-        self.textbuffer.insert(end_iter, "\n" + rec.msg) #Appends new message to the end of buffer, which reflects in LogTextView
+        # Every time logging occurs, this will add a function to be called on the default main loop
+        # (whenever there are no higher priority events pending)
+        # that appends the message to the end of the text buffer, which reflects in the text view.
+        GLib.idle_add(self.update_text_buffer, self.format(rec) + "\n")
+
+    def update_text_buffer(self, text):
+        # Append the message to the end of the text buffer, which reflects in the text view
+        end_iter = self.textbuffer.get_end_iter()  # Gets the position of the end of the string in the logBuffer
+        self.textbuffer.insert(end_iter, text)  # Appends new message to the end of buffer, which reflects in LogTextView
 
 class MainWindow(object):
     """
@@ -192,6 +196,8 @@ class MainWindow(object):
             self.builder.get_object("LockedBalanceAmountLabel").set_label("{:,.2f}".format(0))
             self.transactions_list_store.clear()
             self.builder.get_object("MainStatusLabel").set_markup("<b>Loading...</b>")
+            self.builder.get_object("SendTRTLSubBox").hide()
+            self.builder.get_object("SendTRTLMessageLabel").show()
 
             dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Wallet Reset")
             dialog.format_secondary_text(global_variables.message_dict["SUCCESS_WALLET_RESET"])
@@ -444,6 +450,20 @@ class MainWindow(object):
                 # Request the current status from the wallet
                 self.status = global_variables.wallet_connection.request("getStatus")
 
+                # Keep track of the known block count and log a warning if it has gone down (it occasionally temporarily drops, not sure why?)
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                known_block_count = self.status['knownBlockCount']
+                if known_block_count+1 < self.previous_known_block_count:
+                    main_logger.warning(
+                        "Known block height {} has dropped from its previous value {}".format(known_block_count, self.previous_known_block_count))
+                self.previous_known_block_count = known_block_count
+
+                # Check if the block count is above the known block count and log a warning if so
+                # Buffer the block count by 1 due to latency issues - using a remote daemon for example will almost always be behind one block
+                block_count = self.status['blockCount']
+                if block_count-1 > known_block_count:
+                    main_logger.warning("Current block height {} is above the known block height {}".format(block_count, known_block_count))
+
                 # Request all transactions related to our addresses from the wallet
                 # This returns a list of blocks with only our transactions populated in them
                 self.blocks = global_variables.wallet_connection.request(
@@ -565,8 +585,22 @@ class MainWindow(object):
             block_height_string = "<b>Current block height</b> {}".format(block_count)
             # Buffer the block count by 1 due to latency issues
             # Using a remote daemon for example will almost always be behind one block.
-            if block_count+1 < known_block_count:
+            if known_block_count+1 < self.previous_known_block_count:
+                # The known block count occasionally temporarily drops
+                # If it has dropped, we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            elif block_count+1 < known_block_count:
+                # Wallet is synchronizing (block count is catching up to the known block count)
                 block_height_string = "<b>Synchronizing...</b>{}% [{} / {}] ({} days behind)".format(percent_synced, block_count, known_block_count, days_behind)
+                self.builder.get_object("SendTRTLSubBox").hide()
+                self.builder.get_object("SendTRTLMessageLabel").show()
+            elif block_count-1 > known_block_count:
+                # If the block count is above the known block count we don't want to show wrong counts in the status bar
+                block_height_string = "<b>Synchronizing...</b>"
+            else:
+                # Wallet is synchronized (block count has caught up with the known block count)
+                self.builder.get_object("SendTRTLSubBox").show()
+                self.builder.get_object("SendTRTLMessageLabel").hide()
             status_label = "{0} | <b>Transactions</b> {1} | <b>Peer count</b> {2} | <b>Last updated</b> {3}".format(
                 block_height_string, len(self.transactions_list_store), peer_count, datetime.now(tzlocal.get_localzone()).strftime("%H:%M:%S"))
             self.builder.get_object("MainStatusLabel").set_markup(status_label)
@@ -600,6 +634,9 @@ class MainWindow(object):
         self.status = []
         self.blocks = []
 
+        # Keep track of the known block count in order to detect if it goes down (it occasionally temporarily drops)
+        self.previous_known_block_count = 0
+
         # Get the transaction treeview's backing list store
         self.transactions_list_store = self.builder.get_object("HomeTransactionsListStore")
 
@@ -619,6 +656,7 @@ class MainWindow(object):
         # information as the log file, with less verbose (INFO).
         uiHandler = UILogHandler(self.builder.get_object("LogBuffer"))
         uiHandler.setLevel(logging.INFO)
+        uiHandler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s'))
         main_logger.addHandler(uiHandler)
         self.LogScroller = self.builder.get_object("LogScrolledWindow")
 
